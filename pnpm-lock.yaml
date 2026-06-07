@@ -39,8 +39,8 @@ importers:
         specifier: ^16.9.3
         version: 16.9.3(@tailwindcss/oxide@4.3.0)(@takumi-rs/image-response@1.7.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/mdx@2.0.14)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.17)(flexsearch@0.8.212)(lucide-react@1.17.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(waku@1.0.0-beta.2(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(react-dom@19.2.7(react@19.2.7))(react-server-dom-webpack@19.2.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(webpack@5.107.2(esbuild@0.28.0)))(react@19.2.7)(terser@5.48.0))(zod@4.4.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.0)
       fumapress:
-        specifier: 0.5.3
-        version: 0.5.3(g4aszxozzotn5jwknwlmk5fkoa)
+        specifier: 0.5.4
+        version: 0.5.4(g4aszxozzotn5jwknwlmk5fkoa)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -75,6 +75,9 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)
 
   packages/core:
     dependencies:
@@ -2219,8 +2222,8 @@ packages:
       next:
         optional: true
 
-  fumapress@0.5.3:
-    resolution: {integrity: sha512-tb18xfkIRIfjo2SxUJ23MWshY5LvgGvnrFw6/z6IKh9AnGPphuVNrnE10CXtMf/9cXbroR751ftDMYMi0ZtgMw==}
+  fumapress@0.5.4:
+    resolution: {integrity: sha512-jUtUvV6F6fY73c04ez1SIT+vSkk0qyGUwELHFYSi3gaXhjoWUhlqbn22OTA9atIr6+Gee8OoGmyeIveuyCdO3Q==}
     peerDependencies:
       '@types/mdx': '*'
       '@types/react': '*'
@@ -2232,7 +2235,7 @@ packages:
       react: ^19.2.0
       react-dom: ^19.2.0
       sharp: ^0.34.0
-      waku: 1.0.0-beta.1
+      waku: 1.0.0-beta.2
     peerDependenciesMeta:
       '@types/mdx':
         optional: true
@@ -5313,7 +5316,7 @@ snapshots:
       - '@types/react-dom'
       - tailwindcss
 
-  fumapress@0.5.3(g4aszxozzotn5jwknwlmk5fkoa):
+  fumapress@0.5.4(g4aszxozzotn5jwknwlmk5fkoa):
     dependencies:
       '@orama/orama': 3.1.18
       '@takumi-rs/image-response': 1.7.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
