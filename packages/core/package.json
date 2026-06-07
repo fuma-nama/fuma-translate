@@ -1,0 +1,55 @@
+{
+  "name": "fuma-translate",
+  "version": "0.0.0",
+  "description": "The build-time package to implement multilingual in your JavaScript app",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fuma-translate",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "./compiler": "./dist/compiler.mjs",
+    "./react": "./dist/react.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "types:check": "tsc --noEmit",
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  },
+  "dependencies": {
+    "oxc-parser": "^0.134.0",
+    "tinyglobby": "^0.2.17"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^25.9.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tsdown": "^0.22.2",
+    "typescript": "6.0.3"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    }
+  }
+}
