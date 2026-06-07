@@ -1,7 +1,7 @@
 "use client";
 import { createContext, use, useMemo, type ReactNode } from "react";
 
-type Translations = Record<string, string>;
+type Translations = Partial<Record<string, string>>;
 
 const Context = createContext<Translations>({});
 

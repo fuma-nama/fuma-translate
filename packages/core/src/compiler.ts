@@ -8,6 +8,7 @@ import type {
   ObjectPropertyKind,
   ParamPattern,
   Span,
+  Statement,
 } from "oxc-parser";
 import { parseSync, Visitor } from "oxc-parser";
 import { glob } from "tinyglobby";
@@ -17,6 +18,8 @@ type SupportedLang = "js" | "jsx" | "ts" | "tsx";
 export interface CompileOptions {
   /** glob patterns */
   input: string[];
+  /** when true, only extract t() calls bound to useTranslations() */
+  strict?: boolean;
 }
 
 export interface CompileOutput {
@@ -247,7 +250,9 @@ function getTranslationHookNotes(
   for (let i = scopes.length - 1; i >= 0; i--) {
     const scope = scopes[i];
     if (!scope) continue;
-    if (scope.has(name)) return scope.get(name)!;
+
+    const b = scope.get(name);
+    if (b !== undefined) return b;
   }
   return false;
 }
@@ -277,41 +282,59 @@ function analyzeCall(
   file: string,
   keys: Set<string>,
   scopes: Map<string, HookNoteBranches | false>[],
+  strict: boolean,
 ): void {
   const callee = unwrapExpression(call.callee);
-  if (callee.type !== "Identifier") return;
+  if (callee.type !== "Identifier" || callee.name !== "t") return;
 
   const hookNotes = getTranslationHookNotes(callee.name, scopes);
-  if (hookNotes === false) return;
+  const fromHook = hookNotes !== false;
+  if (strict && !fromHook) return;
 
-  if (call.arguments.length === 0) {
-    fail(source, file, call, "translation call requires a static string argument");
-  }
+  const effectiveHookNotes: HookNoteBranches = fromHook ? hookNotes : [undefined];
 
-  const firstArg = call.arguments[0];
-  if (!firstArg || firstArg.type === "SpreadElement") {
-    fail(source, file, firstArg ?? call, "translation key must be a static string");
-  }
-
-  const texts = collectStaticStrings(firstArg, source, file);
-
-  let callNotes: HookNoteBranches = [undefined];
-  if (call.arguments.length > 1) {
-    const secondArg = call.arguments[1];
-    if (!secondArg || secondArg.type === "SpreadElement") {
-      fail(source, file, secondArg ?? call, "translation options must be a static object");
+  try {
+    if (call.arguments.length === 0) {
+      fail(source, file, call, "translation call requires a static string argument");
     }
-    callNotes = collectNotes(secondArg, source, file);
-  }
 
-  for (const text of texts) {
-    for (const key of encodeTranslationKey(text, hookNotes, callNotes)) {
-      keys.add(key);
+    if (call.arguments.length > 2) {
+      fail(source, file, call, "translation call accepts at most two arguments");
     }
+
+    const firstArg = call.arguments[0];
+    if (!firstArg || firstArg.type === "SpreadElement") {
+      fail(source, file, firstArg ?? call, "translation key must be a static string");
+    }
+
+    const texts = collectStaticStrings(firstArg, source, file);
+    let callNotes: HookNoteBranches = [undefined];
+    if (call.arguments.length > 1) {
+      const secondArg = call.arguments[1];
+      if (!secondArg || secondArg.type === "SpreadElement") {
+        fail(source, file, secondArg ?? call, "translation options must be a static object");
+      }
+
+      callNotes = collectNotes(secondArg, source, file);
+    }
+
+    for (const text of texts) {
+      for (const key of encodeTranslationKey(text, effectiveHookNotes, callNotes)) {
+        keys.add(key);
+      }
+    }
+  } catch (e) {
+    if (!fromHook && e instanceof StaticAnalysisError) return;
+    throw e;
   }
 }
 
-function analyzeSource(file: string, lang: SupportedLang, source: string): string[] {
+function analyzeSource(
+  file: string,
+  lang: SupportedLang,
+  source: string,
+  strict: boolean,
+): string[] {
   const result = parseSync(file, source, { lang, sourceType: "module" });
 
   if (result.errors.length > 0) {
@@ -322,8 +345,13 @@ function analyzeSource(file: string, lang: SupportedLang, source: string): strin
   const keys = new Set<string>();
   const scopes: Map<string, HookNoteBranches | false>[] = [new Map()];
 
-  const pushScope = () => {
+  const pushScope = (statements?: Statement[]) => {
     scopes.push(new Map());
+    if (statements)
+      for (const stmt of statements) {
+        if (stmt.type !== "FunctionDeclaration" || !stmt.id) continue;
+        registerBinding(stmt.id, false, scopes);
+      }
   };
 
   const popScope = () => {
@@ -331,10 +359,14 @@ function analyzeSource(file: string, lang: SupportedLang, source: string): strin
   };
 
   const visitor = new Visitor({
-    BlockStatement: pushScope,
+    BlockStatement(node) {
+      pushScope(node.body);
+    },
     "BlockStatement:exit": popScope,
 
-    CatchClause: pushScope,
+    CatchClause() {
+      pushScope();
+    },
     "CatchClause:exit": popScope,
 
     FunctionDeclaration(node) {
@@ -364,7 +396,7 @@ function analyzeSource(file: string, lang: SupportedLang, source: string): strin
     },
 
     CallExpression(call) {
-      analyzeCall(call, source, file, keys, scopes);
+      analyzeCall(call, source, file, keys, scopes, strict);
     },
   });
 
@@ -398,7 +430,7 @@ export async function compile(options: CompileOptions): Promise<CompileOutput> {
     if (!lang) continue;
 
     const source = await fs.readFile(file, "utf8");
-    for (const key of analyzeSource(file, lang, source)) {
+    for (const key of analyzeSource(file, lang, source, options.strict ?? false)) {
       keys.add(key);
     }
   }

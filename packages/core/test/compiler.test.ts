@@ -44,10 +44,16 @@ describe("compile", () => {
     expect(result.translationKeys).toEqual(["Before block", "From outer scope", "Inside block"]);
   });
 
-  it("ignores calls that are not translation hooks", async () => {
+  it("extracts valid t() calls and ignores invalid non-hook calls", async () => {
     const result = await compile({ input: [fixture("ignored.tsx")] });
 
-    expect(result.translationKeys).toEqual(["Tracked"]);
+    expect(result.translationKeys).toEqual(["From hook", "Tracked", "Without Hook"]);
+  });
+
+  it("ignores non-hook t() calls when strict is true", async () => {
+    const result = await compile({ input: [fixture("ignored.tsx")], strict: true });
+
+    expect(result.translationKeys).toEqual(["From hook", "Tracked"]);
   });
 
   it("merges and deduplicates keys across files", async () => {
@@ -63,6 +69,14 @@ describe("compile", () => {
       "Theme(dark mode)",
       "Theme(light mode)",
     ]);
+  });
+
+  it("throws when translation options are invalid on a useTranslations hook", async () => {
+    await expect(compile({ input: [fixture("invalid-hook-call.tsx")] })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof StaticAnalysisError &&
+        error.message.includes("translation options must be a static object"),
+    );
   });
 
   it("throws when the translation key is dynamic", async () => {
