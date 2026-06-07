@@ -27,6 +27,17 @@ describe("compile", () => {
     expect(result.translationKeys).toEqual(["Theme(dark mode)", "Theme(light mode)"]);
   });
 
+  it("combines hook-level and call-level notes", async () => {
+    const result = await compile({ input: [fixture("hook-note.tsx")] });
+
+    expect(result.translationKeys).toEqual([
+      "Cancel(settings page)(dialog button)",
+      "Save(settings page)",
+      "Theme(dark mode)",
+      "Theme(light mode)",
+    ]);
+  });
+
   it("respects lexical scoping for translation hooks", async () => {
     const result = await compile({ input: [fixture("scoping.tsx")] });
 
