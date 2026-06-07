@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, extname, resolve } from "node:path";
+import fs from "node:fs/promises";
+import path from "node:path";
 import type {
   BindingPattern,
   CallExpression,
@@ -13,15 +13,11 @@ import { parseSync, Visitor } from "oxc-parser";
 import { glob } from "tinyglobby";
 import { encodeKey } from "./shared";
 
+type SupportedLang = "js" | "jsx" | "ts" | "tsx";
+
 export interface CompileOptions {
   /** glob patterns */
   input: string[];
-
-  /** write output to files */
-  write?: boolean;
-
-  /** output file path, defaults to `translations.json` */
-  output?: string;
 }
 
 export interface CompileOutput {
@@ -270,8 +266,7 @@ function analyzeCall(
   }
 }
 
-function analyzeSource(file: string, source: string): string[] {
-  const lang = getLang(file);
+function analyzeSource(file: string, lang: SupportedLang, source: string): string[] {
   const result = parseSync(file, source, { lang, sourceType: "module" });
 
   if (result.errors.length > 0) {
@@ -332,15 +327,19 @@ function analyzeSource(file: string, source: string): string[] {
   return [...keys];
 }
 
-function getLang(file: string): "js" | "jsx" | "ts" | "tsx" {
-  switch (extname(file)) {
+function getLang(file: string): SupportedLang | undefined {
+  switch (path.extname(file)) {
     case ".tsx":
       return "tsx";
     case ".ts":
+    case ".cts":
+    case ".mts":
       return "ts";
     case ".jsx":
       return "jsx";
-    default:
+    case ".cjs":
+    case ".mjs":
+    case ".js":
       return "js";
   }
 }
@@ -350,20 +349,27 @@ export async function compile(options: CompileOptions): Promise<CompileOutput> {
   const keys = new Set<string>();
 
   for (const file of files) {
-    const source = await readFile(file, "utf8");
-    for (const key of analyzeSource(file, source)) {
+    const lang = getLang(file);
+    if (!lang) continue;
+
+    const source = await fs.readFile(file, "utf8");
+    for (const key of analyzeSource(file, lang, source)) {
       keys.add(key);
     }
   }
 
   const translationKeys = [...keys].sort();
-  const output: CompileOutput = { translationKeys };
+  return { translationKeys };
+}
 
-  if (options.write) {
-    const file = resolve(options.output ?? "translations.json");
-    await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, `${JSON.stringify(output, null, 2)}\n`, "utf8");
+export function typegen(output: CompileOutput): string {
+  if (output.translationKeys.length === 0) {
+    return "export type Translations = {};\n";
   }
 
-  return output;
+  const entries = output.translationKeys
+    .map((key) => `  ${JSON.stringify(key)}: string;`)
+    .join("\n");
+
+  return `export type Translations = {\n${entries}\n};\n`;
 }

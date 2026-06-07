@@ -1,8 +1,131 @@
 ---
-title: My Page
-description: Hello World
+title: Quick Start
+description: Set up fuma-translate with compile-time type generation and React.
 ---
 
-# Overview
+`fuma-translate` extracts translation keys from your React code at build time, generates a strict `Translations` type, and provides a lightweight runtime hook.
 
-This is my first document.
+## Install
+
+```npm
+npm install fuma-translate
+```
+
+## Setup
+
+### Add a compile script
+
+Create a script that scans your source files and writes generated types to `.translations/index.ts`.
+
+```ts title="scripts/compile-translations.ts"
+import { mkdir, writeFile } from "node:fs/promises";
+import { compile, typegen } from "fuma-translate/compiler";
+
+const output = await compile({
+  input: ["src/**/*.tsx"],
+});
+
+await mkdir(".translations", { recursive: true });
+await writeFile(".translations/index.ts", typegen(output), "utf8");
+```
+
+Add it to your `package.json`:
+
+```json title="package.json"
+{
+  "type": "module",
+  "scripts": {
+    "compile:translations": "node scripts/compile-translations.ts",
+    "dev": "pnpm compile:translations && ...",
+    "build": "pnpm compile:translations && ..."
+  }
+}
+```
+
+Run it whenever you add or change `t("...")` calls:
+
+```bash
+pnpm compile:translations
+```
+
+This generates a file like:
+
+```ts title=".translations/index.ts"
+export type Translations = {
+  "Close(dialog button)": string;
+  Hello: string;
+  "Hello {user}": string;
+};
+```
+
+Keys match how the compiler encodes usage: plain text for `t("Hello")`, and `text(note)` when a `note` option is provided.
+
+### Define translations
+
+Create `translations.ts` and shape it strictly against the generated type.
+
+```ts title="translations.ts"
+import type { Translations } from "./.translations";
+
+export const translations = {
+  Hello: "Hello",
+  "Hello {user}": "Hello {user}",
+  "Close(dialog button)": "Close",
+} satisfies Translations;
+```
+
+TypeScript will error if you are missing a key, add an extra key, or use the wrong encoded key shape.
+
+### Use in React
+
+Wrap your app with `TranslationProvider`, then call `useTranslations()` in components.
+
+```tsx title="app.tsx"
+import { TranslationProvider, useTranslations } from "fuma-translate/react";
+import { translations } from "./translations";
+
+export function App() {
+  return (
+    <TranslationProvider translations={translations}>
+      <HomePage />
+    </TranslationProvider>
+  );
+}
+
+function HomePage() {
+  const t = useTranslations();
+
+  return (
+    <main>
+      <h1>{t("Hello")}</h1>
+      <p>{t("Hello {user}", { variables: { "{user}": "Ada" } })}</p>
+      <button type="button">{t("Close", { note: "dialog button" })}</button>
+    </main>
+  );
+}
+```
+
+`useTranslations()` returns `t`, which:
+
+- looks up the encoded key in the translations you pass to `TranslationProvider`
+- falls back to the original text when no translation is defined
+- replaces `{variable}` placeholders when `variables` is provided
+
+You can stack multiple providers to override or extend translations:
+
+```tsx
+<TranslationProvider translations={translations}>
+  <TranslationProvider translations={{ Hello: "Bonjour" }}>
+    <HomePage />
+  </TranslationProvider>
+</TranslationProvider>
+```
+
+## Workflow
+
+1. Write UI with `const t = useTranslations()` and static `t("...")` calls.
+2. Run `pnpm compile:translations` to regenerate `.translations/index.ts`.
+3. Fill in `translations.ts` to satisfy the generated type.
+4. Pass translations to `TranslationProvider`.
+
+Translation keys must be statically analyzable. Dynamic keys such as `t(key)` or ``t(`Hello ${name}`)`` will fail at compile time.

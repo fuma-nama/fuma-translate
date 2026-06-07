@@ -1,9 +1,7 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { compile, StaticAnalysisError } from "../src/compiler.js";
+import { compile, StaticAnalysisError, typegen } from "../src/compiler.js";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
@@ -56,31 +54,6 @@ describe("compile", () => {
     ]);
   });
 
-  it("writes translations.json when write is enabled", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "fuma-translate-"));
-    const output = join(dir, "translations.json");
-
-    try {
-      await compile({
-        input: [fixture("basic.tsx")],
-        write: true,
-        output,
-      });
-
-      const written = JSON.parse(await readFile(output, "utf8"));
-      expect(written).toEqual({
-        translationKeys: [
-          "Close(dialog button)",
-          "Hello",
-          "Hello {user}",
-          "Static template",
-        ],
-      });
-    } finally {
-      await rm(dir, { recursive: true });
-    }
-  });
-
   it("throws when the translation key is dynamic", async () => {
     await expect(compile({ input: [fixture("dynamic-key.tsx")] })).rejects.toSatisfy(
       (error: unknown) =>
@@ -103,5 +76,23 @@ describe("compile", () => {
         error instanceof StaticAnalysisError &&
         error.message.includes("translation options cannot use spread properties"),
     );
+  });
+});
+
+describe("typegen", () => {
+  it("generates a Translations object type from compile output", async () => {
+    const output = await compile({ input: [fixture("basic.tsx")] });
+
+    expect(typegen(output)).toBe(`export type Translations = {
+  "Close(dialog button)": string;
+  "Hello": string;
+  "Hello {user}": string;
+  "Static template": string;
+};
+`);
+  });
+
+  it("generates an empty Translations type when there are no keys", () => {
+    expect(typegen({ translationKeys: [] })).toBe("export type Translations = {};\n");
   });
 });
