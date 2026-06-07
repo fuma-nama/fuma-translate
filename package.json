@@ -10,7 +10,7 @@
     "types:check": "turbo run types:check",
     "test": "vitest",
     "version": "changeset version",
-    "release": "changeset publish"
+    "release": "pnpm build --filter=./packages/* && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",

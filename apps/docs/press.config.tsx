@@ -8,7 +8,26 @@ import { docs } from "./.source/server";
 export default defineConfig({
   content: docs.toFumadocsSource(),
   site: {
-    name: "Fumapress",
+    name: "Fuma Translate",
+    git: {
+      branch: "dev",
+      repo: "fuma-translate",
+      user: "fuma-nama",
+    },
+  },
+  meta: {
+    root() {
+      return (
+        <>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+            rel="stylesheet"
+          />
+        </>
+      );
+    },
   },
 })
   .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
