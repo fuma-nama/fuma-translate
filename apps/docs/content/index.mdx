@@ -8,7 +8,7 @@ description: Set up fuma-translate with compile-time type generation and React.
 ## Install
 
 ```npm
-npm install fuma-translate
+npm install fuma-translate @fuma-translate/react
 ```
 
 ## Setup
@@ -19,7 +19,7 @@ Create a script that scans your source files and writes generated types to `.tra
 
 ```ts title="scripts/compile-translations.ts"
 import { mkdir, writeFile } from "node:fs/promises";
-import { compile, typegen } from "fuma-translate/compiler";
+import { compile, typegen } from "fuma-translate";
 
 const output = await compile({
   input: ["src/**/*.tsx"],
@@ -81,7 +81,7 @@ TypeScript will error if you are missing a key, add an extra key, or use the wro
 Wrap your app with `TranslationProvider`, then call `useTranslations()` in components.
 
 ```tsx title="app.tsx"
-import { TranslationProvider, useTranslations } from "fuma-translate/react";
+import { TranslationProvider, useTranslations } from "@fuma-translate/react";
 import { translations } from "./translations";
 
 export function App() {

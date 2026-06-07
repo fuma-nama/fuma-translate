@@ -1,5 +1,5 @@
 {
-  "plugins": ["import", "typescript"],
+  "plugins": ["import", "typescript", "react"],
   "categories": {},
   "rules": {},
   "settings": {

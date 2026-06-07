@@ -1,6 +1,5 @@
 "use client";
 import { createContext, use, useMemo, type ReactNode } from "react";
-import { encodeKey } from "./shared";
 
 type Translations = Record<string, string>;
 
@@ -60,4 +59,8 @@ export function useTranslations(hookOptions?: {
 
     return text;
   };
+}
+
+function encodeKey(text: string, notes: string[]): string {
+  return text + notes.map((n) => `(${n})`).join("");
 }

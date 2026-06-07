@@ -1,4 +1,4 @@
-import { useTranslations } from "fuma-translate/react";
+import { useTranslations } from "@fuma-translate/react";
 
 function translate(label: string) {
   return label;

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "fuma-translate/*": ["../../src/*"]
+      "fuma-translate": ["../../src/index.ts"],
+      "@fuma-translate/react": ["../../../react/src/index.tsx"]
     }
   },
   "include": ["./**/*"]

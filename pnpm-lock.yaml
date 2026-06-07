@@ -95,6 +95,21 @@ importers:
         specifier: ^25.9.2
         version: 25.9.2
       '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.2(typescript@6.0.3)(unrun@0.3.1)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+
+  packages/react:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/react':
         specifier: 19.2.17
         version: 19.2.17
       '@types/react-dom':

@@ -1,6 +1,6 @@
-import { useTranslations } from "fuma-translate/react";
+import { useTranslations } from "@fuma-translate/react";
 
-export function Basic() {
+export function Basic({ user }: { user: string }) {
   const t = useTranslations();
 
   return (
@@ -8,7 +8,7 @@ export function Basic() {
       {t("Hello")}
       {t("Close", { note: "dialog button" })}
       {t(`Static template`)}
-      {t("Hello {user}", { variables: { user: "Fuma" } })}
+      {t("Hello {user}", { variables: { user } })}
     </>
   );
 }

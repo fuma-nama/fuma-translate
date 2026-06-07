@@ -1,4 +1,4 @@
-import { useTranslations } from "fuma-translate/react";
+import { useTranslations } from "@fuma-translate/react";
 
 export function Outer() {
   const t = useTranslations();
