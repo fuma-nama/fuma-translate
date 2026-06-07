@@ -40,16 +40,22 @@ export interface TranslationsHook {
   ): string;
 }
 
-export function useTranslations(): TranslationsHook {
+export function useTranslations(hookOptions?: {
+  /** provide additional context to all t() calls */
+  note?: string;
+}): TranslationsHook {
   const translations = use(Context);
 
   return (rawText, opts = {}) => {
     const { note, variables } = opts;
-    const k = encodeKey(rawText, note);
+    const notes: string[] = [];
+    if (hookOptions?.note) notes.push(hookOptions.note);
+    if (note) notes.push(note);
+    const k = encodeKey(rawText, notes);
     let text = translations[k] ?? rawText;
 
     if (variables) {
-      for (const k in variables) text = text.replaceAll(k, variables[k as never]);
+      for (const k in variables) text = text.replaceAll(`{${k}}`, variables[k as never]);
     }
 
     return text;

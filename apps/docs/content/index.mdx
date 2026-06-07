@@ -88,6 +88,7 @@ export function App() {
   return (
     <TranslationProvider translations={translations}>
       <HomePage />
+      <Dialog />
     </TranslationProvider>
   );
 }
@@ -98,8 +99,22 @@ function HomePage() {
   return (
     <main>
       <h1>{t("Hello")}</h1>
-      <p>{t("Hello {user}", { variables: { "{user}": "Ada" } })}</p>
+      <p>{t("Hello {user}", { variables: { user: "Ada" } })}</p>
+      {/* `note` provides additional context to the text */}
       <button type="button">{t("Close", { note: "dialog button" })}</button>
+    </main>
+  );
+}
+
+function Dialog() {
+  const t = useTranslations({
+    note: "text in a dialog",
+  });
+
+  return (
+    <main>
+      {/* will inherit `note` from `useTranslations()` too */}
+      <h1>{t("Hello")}</h1>
     </main>
   );
 }

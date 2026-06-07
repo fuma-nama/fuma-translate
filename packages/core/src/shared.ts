@@ -1,3 +1,3 @@
-export function encodeKey(text: string, note?: string): string {
-  return note ? `${text}(${note})` : text;
+export function encodeKey(text: string, notes: string[]): string {
+  return text + notes.map((n) => `(${n})`).join("");
 }

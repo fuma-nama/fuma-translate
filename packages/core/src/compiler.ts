@@ -52,13 +52,30 @@ function formatLocation(source: string, offset: number): string {
   return `${line}:${column}`;
 }
 
-function isUseTranslationsCall(expr: Expression): boolean {
-  return (
-    expr.type === "CallExpression" &&
-    expr.callee.type === "Identifier" &&
-    expr.callee.name === "useTranslations" &&
-    expr.arguments.length === 0
-  );
+type HookNoteBranches = (string | undefined)[];
+
+function parseUseTranslationsCall(
+  expr: Expression,
+  source: string,
+  file: string,
+): HookNoteBranches | null {
+  if (expr.type !== "CallExpression") return null;
+  if (expr.callee.type !== "Identifier" || expr.callee.name !== "useTranslations") {
+    return null;
+  }
+
+  if (expr.arguments.length === 0) return [undefined];
+
+  if (expr.arguments.length > 1) {
+    fail(source, file, expr, "useTranslations accepts at most one options argument");
+  }
+
+  const arg = expr.arguments[0];
+  if (!arg || arg.type === "SpreadElement") {
+    fail(source, file, arg ?? expr, "useTranslations options must be a static object");
+  }
+
+  return collectNotes(arg, source, file);
 }
 
 function unwrapExpression(expr: Expression): Expression {
@@ -167,7 +184,9 @@ function collectNotes(
   return noteValues.map((note) => note);
 }
 
-function currentScope(scopes: Map<string, boolean>[]): Map<string, boolean> {
+function currentScope(
+  scopes: Map<string, HookNoteBranches | false>[],
+): Map<string, HookNoteBranches | false> {
   const scope = scopes.at(-1);
   if (!scope) throw new Error("scope stack is empty");
   return scope;
@@ -175,12 +194,12 @@ function currentScope(scopes: Map<string, boolean>[]): Map<string, boolean> {
 
 function registerBinding(
   pattern: BindingPattern,
-  isHook: boolean,
-  scopes: Map<string, boolean>[],
+  hookNotes: HookNoteBranches | false,
+  scopes: Map<string, HookNoteBranches | false>[],
 ): void {
   switch (pattern.type) {
     case "Identifier":
-      currentScope(scopes).set(pattern.name, isHook);
+      currentScope(scopes).set(pattern.name, hookNotes);
       return;
     case "ObjectPattern":
       for (const prop of pattern.properties) {
@@ -202,12 +221,15 @@ function registerBinding(
       }
       return;
     case "AssignmentPattern":
-      registerBinding(pattern.left, isHook, scopes);
+      registerBinding(pattern.left, hookNotes, scopes);
       return;
   }
 }
 
-function registerParams(params: ParamPattern[], scopes: Map<string, boolean>[]): void {
+function registerParams(
+  params: ParamPattern[],
+  scopes: Map<string, HookNoteBranches | false>[],
+): void {
   for (const param of params) {
     if (param.type === "TSParameterProperty") {
       registerBinding(param.parameter, false, scopes);
@@ -219,7 +241,10 @@ function registerParams(params: ParamPattern[], scopes: Map<string, boolean>[]):
   }
 }
 
-function isTranslationHook(name: string, scopes: Map<string, boolean>[]): boolean {
+function getTranslationHookNotes(
+  name: string,
+  scopes: Map<string, HookNoteBranches | false>[],
+): HookNoteBranches | false {
   for (let i = scopes.length - 1; i >= 0; i--) {
     const scope = scopes[i];
     if (!scope) continue;
@@ -228,16 +253,37 @@ function isTranslationHook(name: string, scopes: Map<string, boolean>[]): boolea
   return false;
 }
 
+function encodeTranslationKey(
+  text: string,
+  hookNotes: HookNoteBranches,
+  callNotes: HookNoteBranches,
+): string[] {
+  const keys: string[] = [];
+
+  for (const hookNote of hookNotes) {
+    for (const callNote of callNotes) {
+      const notes: string[] = [];
+      if (hookNote) notes.push(hookNote);
+      if (callNote) notes.push(callNote);
+      keys.push(encodeKey(text, notes));
+    }
+  }
+
+  return keys;
+}
+
 function analyzeCall(
   call: CallExpression,
   source: string,
   file: string,
   keys: Set<string>,
-  scopes: Map<string, boolean>[],
+  scopes: Map<string, HookNoteBranches | false>[],
 ): void {
   const callee = unwrapExpression(call.callee);
   if (callee.type !== "Identifier") return;
-  if (!isTranslationHook(callee.name, scopes)) return;
+
+  const hookNotes = getTranslationHookNotes(callee.name, scopes);
+  if (hookNotes === false) return;
 
   if (call.arguments.length === 0) {
     fail(source, file, call, "translation call requires a static string argument");
@@ -250,18 +296,18 @@ function analyzeCall(
 
   const texts = collectStaticStrings(firstArg, source, file);
 
-  let notes: (string | undefined)[] = [undefined];
+  let callNotes: HookNoteBranches = [undefined];
   if (call.arguments.length > 1) {
     const secondArg = call.arguments[1];
     if (!secondArg || secondArg.type === "SpreadElement") {
       fail(source, file, secondArg ?? call, "translation options must be a static object");
     }
-    notes = collectNotes(secondArg, source, file);
+    callNotes = collectNotes(secondArg, source, file);
   }
 
   for (const text of texts) {
-    for (const note of notes) {
-      keys.add(encodeKey(text, note));
+    for (const key of encodeTranslationKey(text, hookNotes, callNotes)) {
+      keys.add(key);
     }
   }
 }
@@ -275,7 +321,7 @@ function analyzeSource(file: string, lang: SupportedLang, source: string): strin
   }
 
   const keys = new Set<string>();
-  const scopes: Map<string, boolean>[] = [new Map()];
+  const scopes: Map<string, HookNoteBranches | false>[] = [new Map()];
 
   const pushScope = () => {
     scopes.push(new Map());
@@ -314,8 +360,8 @@ function analyzeSource(file: string, lang: SupportedLang, source: string): strin
       if (!decl.init) return;
 
       const init = unwrapExpression(decl.init);
-      const isHook = init.type === "CallExpression" && isUseTranslationsCall(init);
-      registerBinding(decl.id, isHook, scopes);
+      const hookNotes = parseUseTranslationsCall(init, source, file);
+      registerBinding(decl.id, hookNotes ?? false, scopes);
     },
 
     CallExpression(call) {
