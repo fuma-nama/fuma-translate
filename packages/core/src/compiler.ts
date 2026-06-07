@@ -11,7 +11,6 @@ import type {
 } from "oxc-parser";
 import { parseSync, Visitor } from "oxc-parser";
 import { glob } from "tinyglobby";
-import { encodeKey } from "./shared";
 
 type SupportedLang = "js" | "jsx" | "ts" | "tsx";
 
@@ -418,4 +417,8 @@ export function typegen(output: CompileOutput): string {
     .join("\n");
 
   return `export type Translations = {\n${entries}\n};\n`;
+}
+
+function encodeKey(text: string, notes: string[]): string {
+  return text + notes.map((n) => `(${n})`).join("");
 }
