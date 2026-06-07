@@ -1,7 +1,7 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/*"],
+  entry: ["src/react.tsx", "src/compiler.ts"],
   target: "es2023",
   dts: true,
   exports: true,
