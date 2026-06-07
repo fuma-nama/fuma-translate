@@ -1,3 +1,3 @@
-## Fuma's New Package
+## Fuma Translate
 
-Create a new package in my preferences.
+A tiny package for UI translations.
