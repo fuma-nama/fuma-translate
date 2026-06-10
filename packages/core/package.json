@@ -6,7 +6,11 @@
   "author": "Fuma Nama",
   "repository": "github:fuma-nama/fuma-translate",
   "files": [
-    "dist"
+    "dist",
+    "native/native.js",
+    "native/native.d.ts",
+    "native/browser.js",
+    "native/webcontainer-fallback.cjs"
   ],
   "type": "module",
   "exports": {
@@ -18,18 +22,53 @@
   },
   "scripts": {
     "types:check": "tsc --noEmit",
-    "build": "tsdown",
-    "dev": "tsdown --watch"
-  },
-  "dependencies": {
-    "oxc-parser": "^0.134.0",
-    "tinyglobby": "^0.2.17"
+    "build:native": "napi build --platform --release --esm --js native.js --dts native.d.ts --output-dir native",
+    "build:js": "tsdown",
+    "build": "pnpm build:native && pnpm build:js",
+    "dev": "tsdown --watch",
+    "prepublishOnly": "napi prepublish -t npm",
+    "artifacts": "napi create-npm-dirs && napi artifacts --npm-dir npm --output-dir native --build-output-dir native"
   },
   "devDependencies": {
+    "@napi-rs/cli": "^3.7.0",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
     "tsdown": "^0.22.2",
     "typescript": "6.0.3"
+  },
+  "optionalDependencies": {
+    "@fuma-translate/binding-darwin-arm64": "0.0.3",
+    "@fuma-translate/binding-darwin-x64": "0.0.3",
+    "@fuma-translate/binding-linux-arm64-gnu": "0.0.3",
+    "@fuma-translate/binding-linux-arm64-musl": "0.0.3",
+    "@fuma-translate/binding-linux-x64-gnu": "0.0.3",
+    "@fuma-translate/binding-linux-x64-musl": "0.0.3",
+    "@fuma-translate/binding-wasm32-wasi": "0.0.3",
+    "@fuma-translate/binding-win32-arm64-msvc": "0.0.3",
+    "@fuma-translate/binding-win32-x64-msvc": "0.0.3"
+  },
+  "napi": {
+    "binaryName": "fuma-translate",
+    "packageName": "@fuma-translate/binding",
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "aarch64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "x86_64-pc-windows-msvc",
+      "wasm32-wasip1-threads"
+    ],
+    "wasm": {
+      "browser": {
+        "fs": false
+      }
+    }
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

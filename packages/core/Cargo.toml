@@ -1,0 +1,32 @@
+[package]
+name = "fuma-translate-native"
+version = "0.0.3"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+glob = "0.3"
+napi = { version = "3", default-features = false, features = ["napi4"] }
+napi-derive = "3"
+oxc_allocator = "0.134.0"
+oxc_ast = "0.134.0"
+oxc_ast_visit = "0.134.0"
+oxc_parser = "0.134.0"
+oxc_semantic = "0.134.0"
+oxc_span = "0.134.0"
+oxc_syntax = "0.134.0"
+rayon = "1.10"
+rustc-hash = "2.1"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+strip = "symbols"
+codegen-units = 1
+opt-level = "z"
+panic = "abort"

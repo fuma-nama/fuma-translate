@@ -6,6 +6,6 @@ export default defineConfig({
   dts: true,
   exports: true,
   deps: {
-    onlyBundle: [],
+    neverBundle: ["../native/native.js"],
   },
 });

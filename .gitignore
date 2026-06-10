@@ -27,6 +27,12 @@ out/
 build
 dist
 
+# Rust / NAPI
+packages/core/target/
+packages/core/npm/
+packages/core/native/
+packages/core/*.node
+
 
 # Debug
 npm-debug.log*
