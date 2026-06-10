@@ -37,17 +37,6 @@
     "tsdown": "^0.22.2",
     "typescript": "6.0.3"
   },
-  "optionalDependencies": {
-    "@fuma-translate/binding-darwin-arm64": "0.0.3",
-    "@fuma-translate/binding-darwin-x64": "0.0.3",
-    "@fuma-translate/binding-linux-arm64-gnu": "0.0.3",
-    "@fuma-translate/binding-linux-arm64-musl": "0.0.3",
-    "@fuma-translate/binding-linux-x64-gnu": "0.0.3",
-    "@fuma-translate/binding-linux-x64-musl": "0.0.3",
-    "@fuma-translate/binding-wasm32-wasi": "0.0.3",
-    "@fuma-translate/binding-win32-arm64-msvc": "0.0.3",
-    "@fuma-translate/binding-win32-x64-msvc": "0.0.3"
-  },
   "napi": {
     "binaryName": "fuma-translate",
     "packageName": "@fuma-translate/binding",
