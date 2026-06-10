@@ -14,7 +14,7 @@ jobs:
             target: aarch64-apple-darwin
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - host: ubuntu-latest
+          - host: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
           - host: windows-latest
             target: x86_64-pc-windows-msvc
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: binding-${{ matrix.settings.target }}
-          path: packages/core/native/*.node
+          path: packages/core/native/
           if-no-files-found: error
 
   test:
@@ -77,7 +77,11 @@ jobs:
           path: packages/core/native
 
       - name: Build packages
-        run: pnpm exec napi build --platform --release --output-dir packages/core/native && pnpm run build --filter=./packages/*
+        working-directory: packages/core
+        run: pnpm exec napi build --platform --release --output-dir native
+
+      - name: Build workspace packages
+        run: pnpm run build --filter=./packages/*
 
       - name: Run Tests
         run: pnpm test

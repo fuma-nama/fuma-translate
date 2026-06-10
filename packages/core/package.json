@@ -30,8 +30,11 @@
     "artifacts": "napi create-npm-dirs && napi artifacts --npm-dir npm --output-dir native --build-output-dir native"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.0",
+    "@emnapi/runtime": "^1.11.0",
     "@napi-rs/cli": "^3.7.0",
     "@repo/typescript-config": "workspace:*",
+    "@tybys/wasm-util": "^0.10.0",
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
     "tsdown": "^0.22.2",

@@ -19,9 +19,11 @@ jobs:
         settings:
           - host: macos-latest
             target: aarch64-apple-darwin
+          - host: macos-latest
+            target: x86_64-apple-darwin
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - host: ubuntu-latest
+          - host: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
           - host: ubuntu-latest
             target: x86_64-unknown-linux-musl
@@ -29,8 +31,10 @@ jobs:
             target: aarch64-unknown-linux-musl
           - host: windows-latest
             target: x86_64-pc-windows-msvc
-          - host: windows-latest
+          - host: windows-11-arm
             target: aarch64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: wasm32-wasip1-threads
     runs-on: ${{ matrix.settings.host }}
 
     steps:
@@ -49,17 +53,36 @@ jobs:
         with:
           targets: ${{ matrix.settings.target }}
 
+      - uses: mlugg/setup-zig@v2
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        with:
+          version: 0.14.1
+
+      - name: Install cargo-zigbuild
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        uses: taiki-e/install-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild
+
       - name: Install Dependencies
         run: pnpm i --frozen-lockfile
 
+      - name: Build native binding (musl)
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        working-directory: packages/core
+        run: pnpm exec napi build --platform --release --target ${{ matrix.settings.target }} -x --output-dir native
+
       - name: Build native binding
+        if: ${{ contains(matrix.settings.target, 'musl') == false }}
         working-directory: packages/core
         run: pnpm exec napi build --platform --release --target ${{ matrix.settings.target }} --output-dir native
 
       - uses: actions/upload-artifact@v4
         with:
           name: binding-${{ matrix.settings.target }}
-          path: packages/core/native/*.node
+          path: packages/core/native/
           if-no-files-found: error
 
   release:
