@@ -1,16 +1,24 @@
 {
   "name": "fuma-translate",
-  "version": "0.0.3",
+  "version": "1.0.1",
   "description": "The build-time package to implement multilingual in your JavaScript app",
   "license": "MIT",
   "author": "Fuma Nama",
   "repository": "github:fuma-nama/fuma-translate",
+  "bin": {
+    "fuma-translate": "./dist/cli.mjs"
+  },
   "files": [
-    "dist"
+    "dist",
+    "native/native.js",
+    "native/native.d.ts",
+    "native/browser.js",
+    "native/webcontainer-fallback.cjs"
   ],
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./cli": "./dist/cli.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -18,18 +26,48 @@
   },
   "scripts": {
     "types:check": "tsc --noEmit",
-    "build": "tsdown",
-    "dev": "tsdown --watch"
+    "build:native": "napi build --platform --release --esm --js native.js --dts native.d.ts --output-dir native",
+    "build:js": "tsdown",
+    "build": "pnpm build:native && pnpm build:js",
+    "dev": "tsdown --watch",
+    "prepublishOnly": "napi prepublish -t npm",
+    "artifacts": "napi create-npm-dirs && napi artifacts --npm-dir npm --output-dir native --build-output-dir native"
   },
   "dependencies": {
-    "oxc-parser": "^0.134.0",
-    "tinyglobby": "^0.2.17"
+    "chokidar": "^5.0.0"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.0",
+    "@emnapi/runtime": "^1.11.0",
+    "@napi-rs/cli": "^3.7.1",
     "@repo/typescript-config": "workspace:*",
+    "@tybys/wasm-util": "^0.10.0",
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
     "tsdown": "^0.22.2",
     "typescript": "6.0.3"
+  },
+  "napi": {
+    "binaryName": "fuma-translate",
+    "packageName": "@fuma-translate/binding",
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "aarch64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "x86_64-pc-windows-msvc",
+      "wasm32-wasip1-threads"
+    ],
+    "wasm": {
+      "browser": {
+        "fs": false
+      }
+    }
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

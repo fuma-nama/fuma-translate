@@ -1,6 +1,6 @@
 {
   "name": "@fuma-translate/react",
-  "version": "0.0.3",
+  "version": "1.0.1",
   "description": "React runtime for fuma-translate",
   "license": "MIT",
   "author": "Fuma Nama",
@@ -28,7 +28,8 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tsdown": "^0.22.2",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "@types/react": "*",

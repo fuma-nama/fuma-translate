@@ -1,9 +1,9 @@
 ---
 title: Quick Start
-description: Set up fuma-translate with compile-time type generation and React.
+description: Set up Fuma Translate with compile-time type generation and React.
 ---
 
-`fuma-translate` extracts translation keys from your React code at build time, generates a strict `Translations` type, and provides a lightweight runtime hook.
+Fuma Translate extracts translation keys from your React code statically, generates a strict `Translations` type, and provides a lightweight runtime hook.
 
 ## Install
 
@@ -54,7 +54,7 @@ export type Translations = {
 };
 ```
 
-Keys match how the compiler encodes usage: plain text for `t("Hello")`, and `text(note)` when a `note` option is provided.
+Keys are generated from the original text with meaningful context, your future translation work can rely purely on the keys as a reference.
 
 ### Define translations
 
@@ -70,7 +70,7 @@ export const translations = {
 } satisfies Translations;
 ```
 
-TypeScript will error if you are missing a key, add an extra key, or use the wrong encoded key shape.
+TypeScript will error on missing/unused keys.
 
 ### Use in React
 
@@ -116,11 +116,7 @@ function Dialog() {
 }
 ```
 
-`useTranslations()` returns `t`, which:
-
-- looks up the encoded key in the translations you pass to `TranslationProvider`
-- falls back to the original text when no translation is defined
-- replaces `{variable}` placeholders when `variables` is provided
+`useTranslations()` returns the translate hook, see the [`t()`](/hook) section for more details.
 
 You can stack multiple providers to override or extend translations:
 
@@ -132,9 +128,9 @@ You can stack multiple providers to override or extend translations:
 </TranslationProvider>
 ```
 
-## Workflow
+## Recommended Workflow
 
-1. Write UI with `const t = useTranslations()` and static `t("...")` calls.
+1. Write UI with static `t("...")` calls.
 2. Run `pnpm compile:translations` to regenerate `.translations/index.ts`.
 3. Fill in `translations.ts` to satisfy the generated type.
 4. Pass translations to `TranslationProvider`.

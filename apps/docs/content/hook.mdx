@@ -1,0 +1,139 @@
+---
+title: Translate Hook
+description: All-in-one function to translate text.
+---
+
+`useTranslations()` returns `t`, a function for translating plain strings in your UI.
+
+```tsx
+import { useTranslations } from "@fuma-translate/react";
+
+function HomePage() {
+  const t = useTranslations();
+
+  return <h1>{t("Hello")}</h1>;
+}
+```
+
+- looks up the translations from `TranslationProvider`.
+- falls back to the original text when no translation is defined.
+- handles variable placeholders.
+
+## Variables
+
+Pass dynamic values with `variables`. Placeholder names in the string must match the keys you provide:
+
+```tsx
+t("Hello {user}", { variables: { user: "Ada" } });
+// => "Hello Ada"
+```
+
+Translators can reorder placeholders in the translated string.
+
+## Notes
+
+Use `note` to disambiguate the same text in different contexts. The compiler encodes it into the translation key as `text(note)`:
+
+```tsx
+t("Close", { note: "dialog button" });
+// key: "Close(dialog button)"
+```
+
+You can also set a hook-level `note`. All `t()` calls from that hook inherit it:
+
+```tsx
+function Dialog() {
+  const t = useTranslations({ note: "text in a dialog" });
+
+  return <h1>{t("Hello")}</h1>;
+  // key: "Hello(text in a dialog)"
+}
+```
+
+Per-call `note` values are appended after the hook-level note.
+
+## Translation keys
+
+The compiler extracts keys from static `t("...")` calls.
+
+```ts
+export type Translations = {
+  Hello: string;
+  "Hello {user}": string;
+  "Close(dialog button)": string;
+};
+```
+
+Translation keys must be statically analyzable. Dynamic keys such as `t(key)` or ``t(`Hello ${name}`)`` will fail at compile time.
+
+## JSX
+
+Use `t.jsx()` when a translation needs React/JSX nodes, such as links, buttons, bold text, or other markup. It works like `t()`, but returns JSX nodes instead of a plain string.
+
+### Variables as React nodes
+
+`{variable}` placeholders accept React nodes in `variables`:
+
+```tsx
+function WelcomeMessage() {
+  const t = useTranslations();
+
+  return (
+    <p>
+      {t.jsx("Hello {user}", {
+        variables: {
+          user: <strong>Ada</strong>,
+        },
+      })}
+    </p>
+  );
+}
+```
+
+Translators can reorder `{user}` in the translated string. The runtime substitutes each placeholder with the matching React node.
+
+### Placeholder tags
+
+For rich text, write placeholder tags in the message and map each tag to a render function in `tags`:
+
+```tsx
+function LoginHint() {
+  const t = useTranslations();
+
+  return (
+    <p>
+      {t.jsx("Click <login>here</login> or <signup/>.", {
+        tags: {
+          login: (children) => <a href="/login">{children}</a>,
+          signup: () => <a href="/signup">create an account</a>,
+        },
+      })}
+    </p>
+  );
+}
+```
+
+- **Paired tags**: `<login>here</login>` passes the inner content to the render function as `children`.
+- **Self-closing tags**: `<signup/>` calls the render function with no children, useful for fixed elements like buttons.
+
+Tags can be nested:
+
+```tsx
+t.jsx("Read <bold><link>docs</link></bold>", {
+  tags: {
+    bold: (children) => <b>{children}</b>,
+    link: (children) => <a href="/docs">{children}</a>,
+  },
+});
+```
+
+If a tag has no matching entry in `tags`, its children are rendered as plain text.
+
+## Escaping
+
+Prefix `{` or `<` with a backslash to render them literally:
+
+```tsx
+t.jsx("Use \\{brackets} and \\<tags>");
+// renders: Use {brackets} and <tags>
+```

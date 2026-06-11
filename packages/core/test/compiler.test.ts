@@ -9,11 +9,15 @@ function fixture(name: string): string {
   return join(fixtures, name);
 }
 
+function sortedKeys(keys: string[]): string[] {
+  return keys.sort();
+}
+
 describe("compile", () => {
   it("extracts encoded keys from static usage", async () => {
     const result = await compile({ input: [fixture("basic.tsx")] });
 
-    expect(result.translationKeys).toEqual([
+    expect(sortedKeys(result.translationKeys)).toEqual([
       "Close(dialog button)",
       "Hello",
       "Hello {user}",
@@ -21,16 +25,27 @@ describe("compile", () => {
     ]);
   });
 
+  it("preserves backslash-escaped braces as literal placeholders", async () => {
+    const result = await compile({ input: [fixture("escaped-variables.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toMatchInlineSnapshot(`
+      [
+        "Hello {user}",
+        "Show \\{literal} braces {var}",
+      ]
+    `);
+  });
+
   it("expands conditional note branches", async () => {
     const result = await compile({ input: [fixture("conditional.tsx")] });
 
-    expect(result.translationKeys).toEqual(["Theme(dark mode)", "Theme(light mode)"]);
+    expect(sortedKeys(result.translationKeys)).toEqual(["Theme(dark mode)", "Theme(light mode)"]);
   });
 
   it("combines hook-level and call-level notes", async () => {
     const result = await compile({ input: [fixture("hook-note.tsx")] });
 
-    expect(result.translationKeys).toEqual([
+    expect(sortedKeys(result.translationKeys)).toEqual([
       "Cancel(settings page)(dialog button)",
       "Save(settings page)",
       "Theme(dark mode)",
@@ -41,13 +56,38 @@ describe("compile", () => {
   it("respects lexical scoping for translation hooks", async () => {
     const result = await compile({ input: [fixture("scoping.tsx")] });
 
-    expect(result.translationKeys).toEqual(["Before block", "From outer scope", "Inside block"]);
+    expect(sortedKeys(result.translationKeys)).toEqual([
+      "Before block",
+      "From outer scope",
+      "Inside block",
+    ]);
   });
 
-  it("ignores calls that are not translation hooks", async () => {
+  it("extracts valid t() calls and ignores invalid non-hook calls", async () => {
     const result = await compile({ input: [fixture("ignored.tsx")] });
 
-    expect(result.translationKeys).toEqual(["Tracked"]);
+    expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked"]);
+  });
+
+  it("extracts non-hook t() calls when strict is false", async () => {
+    const result = await compile({ input: [fixture("ignored.tsx")], strict: false });
+
+    expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked", "Without Hook"]);
+  });
+
+  it("extracts keys from fromTranslations()", async () => {
+    const result = await compile({ input: [fixture("from-translations.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual(["Dashboard(admin panel)", "Server Hello"]);
+  });
+
+  it("extracts keys from t.jsx()", async () => {
+    const result = await compile({ input: [fixture("jsx.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual([
+      "Click <a>here</a> to continue",
+      "Or <signup/> today(landing page)",
+    ]);
   });
 
   it("merges and deduplicates keys across files", async () => {
@@ -55,7 +95,7 @@ describe("compile", () => {
       input: [fixture("basic.tsx"), fixture("conditional.tsx")],
     });
 
-    expect(result.translationKeys).toEqual([
+    expect(sortedKeys(result.translationKeys)).toEqual([
       "Close(dialog button)",
       "Hello",
       "Hello {user}",
@@ -63,6 +103,29 @@ describe("compile", () => {
       "Theme(dark mode)",
       "Theme(light mode)",
     ]);
+  });
+
+  it("reports all analysis errors across files", async () => {
+    await expect(
+      compile({ input: [fixture("dynamic-key.tsx"), fixture("spread-options.tsx")] }),
+    ).rejects.toSatisfy((error: unknown) => {
+      if (!(error instanceof StaticAnalysisError)) {
+        return false;
+      }
+
+      return (
+        error.message.includes("translation key must be a static string") &&
+        error.message.includes("translation options cannot use spread properties")
+      );
+    });
+  });
+
+  it("throws when translation options are invalid on a useTranslations hook", async () => {
+    await expect(compile({ input: [fixture("invalid-hook-call.tsx")] })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof StaticAnalysisError &&
+        error.message.includes("translation options must be a static object"),
+    );
   });
 
   it("throws when the translation key is dynamic", async () => {
