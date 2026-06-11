@@ -1,16 +1,14 @@
 "use client";
 import { createContext, use, useMemo, type ReactNode } from "react";
 
-type Translations = Partial<Record<string, string>>;
-
-const Context = createContext<Translations>({});
+const Context = createContext<Partial<Record<string, string>>>({});
 
 /** add translations, you can stack multiple <TranslationProvider /> to override/extend translations */
 export function TranslationProvider({
   translations,
   children,
 }: {
-  translations: Translations;
+  translations: Partial<Record<string, string>>;
   children: ReactNode;
 }) {
   const parent = use(Context);
@@ -21,11 +19,18 @@ export function TranslationProvider({
   );
 }
 
-type GetVariables<T extends string> = T extends `${string}{${infer K}}${infer After}`
-  ? K | GetVariables<After>
+type GetVariables<T extends string> = T extends `${infer Before}{${infer K}}${infer After}`
+  ? (Before extends `${string}\\` ? never : K) | GetVariables<After>
   : never;
 
+interface HookOptions {
+  /** provide additional context to all t() calls */
+  note?: string;
+}
+
 export interface TranslationsHook {
+  translations: Partial<Record<string, string>>;
+
   <Text extends string>(
     text: Text,
     opts?: {
@@ -39,26 +44,40 @@ export interface TranslationsHook {
   ): string;
 }
 
-export function useTranslations(hookOptions?: {
-  /** provide additional context to all t() calls */
-  note?: string;
-}): TranslationsHook {
-  const translations = use(Context);
+const REGEX_VAR = /\\?\{([^}]+)\}/g;
 
-  return (rawText, opts = {}) => {
+export function useTranslations({ note }: HookOptions = {}): TranslationsHook {
+  const translations = use(Context);
+  return useMemo(() => fromTranslations(translations, { note }), [translations, note]);
+}
+
+/** create a translation function from a translations object (e.g. outside React) */
+export function fromTranslations(
+  translations: Partial<Record<string, string>>,
+  { note: hookNote }: HookOptions = {},
+): TranslationsHook {
+  const res: TranslationsHook = (rawText, opts = {}) => {
     const { note, variables } = opts;
     const notes: string[] = [];
-    if (hookOptions?.note) notes.push(hookOptions.note);
+    if (hookNote) notes.push(hookNote);
     if (note) notes.push(note);
     const k = encodeKey(rawText, notes);
     let text = translations[k] ?? rawText;
 
     if (variables) {
-      for (const k in variables) text = text.replaceAll(`{${k}}`, variables[k as never]);
+      text = text.replaceAll(REGEX_VAR, (m, name: string) => {
+        if (m[0] === "\\") return m.slice(1);
+        if (name in variables) return variables[name as never];
+        // keep as-is if unspecified
+        return m;
+      });
     }
 
     return text;
   };
+
+  res.translations = translations;
+  return res;
 }
 
 function encodeKey(text: string, notes: string[]): string {
