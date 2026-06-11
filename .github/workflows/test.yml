@@ -41,7 +41,7 @@ jobs:
 
       - name: Build native binding
         working-directory: packages/core
-        run: pnpm exec napi build --platform --release --target ${{ matrix.settings.target }} --output-dir native
+        run: pnpm exec napi build --platform --release --esm --js native.js --dts native.d.ts --target ${{ matrix.settings.target }} --output-dir native
 
       - uses: actions/upload-artifact@v4
         with:
@@ -78,7 +78,7 @@ jobs:
 
       - name: Build packages
         working-directory: packages/core
-        run: pnpm exec napi build --platform --release --output-dir native
+        run: pnpm exec napi build --platform --release --esm --js native.js --dts native.d.ts --output-dir native
 
       - name: Build workspace packages
         run: pnpm run build --filter=./packages/*

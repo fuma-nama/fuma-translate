@@ -72,12 +72,12 @@ jobs:
       - name: Build native binding (musl)
         if: ${{ contains(matrix.settings.target, 'musl') }}
         working-directory: packages/core
-        run: pnpm exec napi build --platform --release --target ${{ matrix.settings.target }} -x --output-dir native
+        run: pnpm exec napi build --platform --release --esm --js native.js --dts native.d.ts --target ${{ matrix.settings.target }} -x --output-dir native
 
       - name: Build native binding
         if: ${{ contains(matrix.settings.target, 'musl') == false }}
         working-directory: packages/core
-        run: pnpm exec napi build --platform --release --target ${{ matrix.settings.target }} --output-dir native
+        run: pnpm exec napi build --platform --release --esm --js native.js --dts native.d.ts --target ${{ matrix.settings.target }} --output-dir native
 
       - uses: actions/upload-artifact@v4
         with:

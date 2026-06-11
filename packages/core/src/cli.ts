@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import chokidar from "chokidar";
-import { compile, StaticAnalysisError, typegen, type CompileOutput } from "./compiler.js";
+import { compile, StaticAnalysisError, typegen, type CompileOutput } from "./compiler";
 
 function writeManifest(output: CompileOutput): string {
   return `${JSON.stringify({ translationKeys: [...output.translationKeys].sort() }, null, 2)}\n`;
