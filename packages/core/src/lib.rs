@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use fast_glob::glob_match;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use oxc_allocator::Allocator;
@@ -13,6 +14,7 @@ use oxc_span::{GetSpan, SourceType, Span};
 use oxc_syntax::symbol::SymbolId;
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
+use walkdir::WalkDir;
 
 type HookNoteBranches = Vec<Option<String>>;
 
@@ -601,21 +603,40 @@ fn analyze_source(
     }
 }
 
+fn glob_walk_root(pattern: &str) -> PathBuf {
+    let glob_start = pattern
+        .find(|ch| matches!(ch, '*' | '?' | '[' | '{'))
+        .unwrap_or(pattern.len());
+    let base = &pattern[..glob_start];
+
+    if let Some(pos) = base.rfind('/') {
+        PathBuf::from(&base[..pos])
+    } else if let Some(pos) = base.rfind('\\') {
+        PathBuf::from(&base[..pos])
+    } else {
+        PathBuf::from(".")
+    }
+}
+
 fn collect_files(input: &[String]) -> std::result::Result<Vec<PathBuf>, AnalysisError> {
+    let roots: FxHashSet<PathBuf> = input.iter().map(|pattern| glob_walk_root(pattern)).collect();
     let mut files = FxHashSet::default();
 
-    for pattern in input {
-        let entries = glob::glob(pattern).map_err(|error| AnalysisError {
-            message: error.to_string(),
-        })?;
-
-        for entry in entries {
-            let path = entry.map_err(|error| AnalysisError {
+    for root in roots {
+        for entry in WalkDir::new(root).follow_links(false) {
+            let entry = entry.map_err(|error| AnalysisError {
                 message: error.to_string(),
             })?;
 
-            if path.is_file() {
-                files.insert(path);
+            if entry.file_type().is_file() {
+                let path = entry.path();
+                let path_bytes = path.as_os_str().as_encoded_bytes();
+                if input
+                    .iter()
+                    .any(|pattern| glob_match(pattern.as_bytes(), path_bytes))
+                {
+                    files.insert(entry.into_path());
+                }
             }
         }
     }
@@ -653,18 +674,19 @@ fn analyze_file(path: &Path, strict: bool) -> FileAnalysis {
     analyze_source(&file, source_type, &source, strict)
 }
 
-#[napi]
-pub fn compile_sync(input: Vec<String>, strict: Option<bool>) -> Result<CompileOutput> {
-    let strict = strict.unwrap_or(true);
-    let files = collect_files(&input).map_err(|error| Error::from_reason(error.message))?;
+fn compile_files(
+    input: &[String],
+    strict: bool,
+) -> std::result::Result<CompileOutput, AnalysisError> {
+    let files = collect_files(input)?;
 
     let analyses: Vec<FileAnalysis> = files
-        .par_iter()
-        .map(|path| analyze_file(path, strict))
+        .into_par_iter()
+        .map(|path| analyze_file(&path, strict))
         .collect();
 
-    let mut errors = Vec::new();
     let mut keys = FxHashSet::default();
+    let mut errors = Vec::new();
 
     for analysis in analyses {
         keys.extend(analysis.keys);
@@ -672,18 +694,17 @@ pub fn compile_sync(input: Vec<String>, strict: Option<bool>) -> Result<CompileO
     }
 
     if !errors.is_empty() {
-        return Err(Error::from_reason(
-            errors
-                .into_iter()
-                .map(|error| error.message)
-                .collect::<Vec<_>>()
-                .join("\n"),
-        ));
+        return Err(join_errors(errors));
     }
 
     Ok(CompileOutput {
         translation_keys: keys.into_iter().collect(),
     })
+}
+
+#[napi]
+pub fn compile_sync(input: Vec<String>, strict: Option<bool>) -> Result<CompileOutput> {
+    compile_files(&input, strict.unwrap_or(true)).map_err(|error| Error::from_reason(error.message))
 }
 
 #[cfg(test)]
@@ -800,6 +821,23 @@ mod bench {
     const BASIC_PATTERN: &str = "/tmp/fuma-translate-bench/files/*.tsx";
     const LARGE_PATTERN: &str = "/tmp/fuma-translate-bench-large/files/*.tsx";
 
+    fn bench_compile_sync(label: &str, pattern: &str) {
+        let sample = pattern.trim_end_matches("*.tsx");
+        if !Path::new(sample).is_dir() {
+            return;
+        }
+
+        let t0 = Instant::now();
+        let output = compile_files(&[pattern.to_string()], false)
+            .unwrap_or_else(|error| panic!("compile_files: {}", error.message));
+        let total_ms = t0.elapsed().as_millis();
+
+        eprintln!(
+            "{label} compile_sync: {} unique keys in {total_ms}ms",
+            output.translation_keys.len()
+        );
+    }
+
     fn bench_pattern(label: &str, pattern: &str) {
         let sample = pattern.trim_end_matches("*.tsx");
         if !Path::new(sample).is_dir() {
@@ -845,5 +883,7 @@ mod bench {
     fn compile_phases() {
         bench_pattern("basic", BASIC_PATTERN);
         bench_pattern("large", LARGE_PATTERN);
+        bench_compile_sync("basic", BASIC_PATTERN);
+        bench_compile_sync("large", LARGE_PATTERN);
     }
 }
