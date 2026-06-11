@@ -81,6 +81,15 @@ describe("compile", () => {
     expect(sortedKeys(result.translationKeys)).toEqual(["Dashboard(admin panel)", "Server Hello"]);
   });
 
+  it("extracts keys from t.jsx()", async () => {
+    const result = await compile({ input: [fixture("jsx.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual([
+      "Click <a>here</a> to continue",
+      "Or <signup/> today(landing page)",
+    ]);
+  });
+
   it("merges and deduplicates keys across files", async () => {
     const result = await compile({
       input: [fixture("basic.tsx"), fixture("conditional.tsx")],

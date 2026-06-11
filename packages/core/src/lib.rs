@@ -397,15 +397,36 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn analyze_call(&mut self, call: &CallExpression<'a>) {
-        let Expression::Identifier(callee) = unwrap_expression(&call.callee) else {
-            return;
-        };
+    fn hook_symbol_for_callee(&self, call: &CallExpression<'a>) -> Option<SymbolId> {
+        let callee = unwrap_expression(&call.callee);
 
-        let reference = self.semantic.scoping().get_reference(callee.reference_id());
-        let hook_symbol_id = reference
-            .symbol_id()
-            .filter(|symbol_id| self.hook_symbols.contains_key(symbol_id));
+        if let Expression::Identifier(ident) = callee {
+            let reference = self.semantic.scoping().get_reference(ident.reference_id());
+            return reference
+                .symbol_id()
+                .filter(|symbol_id| self.hook_symbols.contains_key(symbol_id));
+        }
+
+        if let Expression::StaticMemberExpression(member) = callee {
+            if member.property.name != "jsx" {
+                return None;
+            }
+
+            let Expression::Identifier(ident) = unwrap_expression(&member.object) else {
+                return None;
+            };
+
+            let reference = self.semantic.scoping().get_reference(ident.reference_id());
+            return reference
+                .symbol_id()
+                .filter(|symbol_id| self.hook_symbols.contains_key(symbol_id));
+        }
+
+        None
+    }
+
+    fn analyze_call(&mut self, call: &CallExpression<'a>) {
+        let hook_symbol_id = self.hook_symbol_for_callee(call);
         let from_hook = hook_symbol_id.is_some();
 
         if self.strict && !from_hook {
@@ -509,10 +530,14 @@ impl<'a> Visit<'a> for Compiler<'a> {
     }
 
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
-        if let Expression::Identifier(callee) = unwrap_expression(&call.callee) {
-            if callee.name == "t" {
-                self.analyze_call(call);
+        match unwrap_expression(&call.callee) {
+            Expression::Identifier(callee) if callee.name == "t" => self.analyze_call(call),
+            Expression::StaticMemberExpression(member) if member.property.name == "jsx" => {
+                if self.hook_symbol_for_callee(call).is_some() {
+                    self.analyze_call(call);
+                }
             }
+            _ => {}
         }
 
         walk::walk_call_expression(self, call);
@@ -707,6 +732,17 @@ mod tests {
             vec![
                 "Dashboard(admin panel)".to_string(),
                 "Server Hello".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn jsx_fixture() {
+        assert_eq!(
+            compile_fixture("jsx.tsx", true),
+            vec![
+                "Click <a>here</a> to continue".to_string(),
+                "Or <signup/> today(landing page)".to_string(),
             ]
         );
     }
