@@ -116,7 +116,7 @@ jobs:
 
       - name: Prepare native packages
         working-directory: packages/core
-        run: pnpm run artifacts && pnpm run build:js && pnpm run prepublishOnly
+        run: pnpm run artifacts && pnpm run build:js
 
       - name: Build remaining packages
         run: pnpm run build --filter=!./packages/core
