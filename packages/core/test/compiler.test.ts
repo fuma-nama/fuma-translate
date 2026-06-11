@@ -25,6 +25,17 @@ describe("compile", () => {
     ]);
   });
 
+  it("preserves backslash-escaped braces as literal placeholders", async () => {
+    const result = await compile({ input: [fixture("escaped-variables.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toMatchInlineSnapshot(`
+      [
+        "Hello {user}",
+        "Show \\{literal} braces {var}",
+      ]
+    `);
+  });
+
   it("expands conditional note branches", async () => {
     const result = await compile({ input: [fixture("conditional.tsx")] });
 
@@ -55,13 +66,19 @@ describe("compile", () => {
   it("extracts valid t() calls and ignores invalid non-hook calls", async () => {
     const result = await compile({ input: [fixture("ignored.tsx")] });
 
+    expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked"]);
+  });
+
+  it("extracts non-hook t() calls when strict is false", async () => {
+    const result = await compile({ input: [fixture("ignored.tsx")], strict: false });
+
     expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked", "Without Hook"]);
   });
 
-  it("ignores non-hook t() calls when strict is true", async () => {
-    const result = await compile({ input: [fixture("ignored.tsx")], strict: true });
+  it("extracts keys from fromTranslations()", async () => {
+    const result = await compile({ input: [fixture("from-translations.tsx")] });
 
-    expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked"]);
+    expect(sortedKeys(result.translationKeys)).toEqual(["Dashboard(admin panel)", "Server Hello"]);
   });
 
   it("merges and deduplicates keys across files", async () => {

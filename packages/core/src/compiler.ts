@@ -1,7 +1,7 @@
 export interface CompileOptions {
   /** glob patterns */
   input: string[];
-  /** when true, only extract t() calls bound to useTranslations() */
+  /** when false, extract all static t() calls; defaults to true (only useTranslations/fromTranslations) */
   strict?: boolean;
 }
 
@@ -40,7 +40,7 @@ export function typegen(output: CompileOutput): string {
     return "export type Translations = {};\n";
   }
 
-  const keys = output.translationKeys.toSorted();
+  const keys = output.translationKeys.sort();
   const entries = keys.map((key) => `  ${JSON.stringify(key)}: string;`).join("\n");
 
   return `export type Translations = {\n${entries}\n};\n`;

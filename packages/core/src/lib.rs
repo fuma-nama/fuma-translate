@@ -219,24 +219,12 @@ fn collect_notes<'a>(
 }
 
 fn parse_use_translations_call<'a>(
-    expr: &Expression<'a>,
+    call: &CallExpression<'a>,
     source: &str,
     file: &str,
-) -> std::result::Result<Option<HookNoteBranches>, AnalysisError> {
-    let Expression::CallExpression(call) = unwrap_expression(expr) else {
-        return Ok(None);
-    };
-
-    let Expression::Identifier(callee) = unwrap_expression(&call.callee) else {
-        return Ok(None);
-    };
-
-    if callee.name != "useTranslations" {
-        return Ok(None);
-    }
-
+) -> std::result::Result<HookNoteBranches, AnalysisError> {
     if call.arguments.is_empty() {
-        return Ok(Some(vec![None]));
+        return Ok(vec![None]);
     }
 
     if call.arguments.len() > 1 {
@@ -257,7 +245,66 @@ fn parse_use_translations_call<'a>(
         ));
     }
 
-    collect_notes(call.arguments[0].as_expression(), source, file).map(Some)
+    collect_notes(call.arguments[0].as_expression(), source, file)
+}
+
+fn parse_from_translations_call<'a>(
+    call: &CallExpression<'a>,
+    source: &str,
+    file: &str,
+) -> std::result::Result<HookNoteBranches, AnalysisError> {
+    if call.arguments.is_empty() {
+        return Err(fail(
+            source,
+            file,
+            call.span,
+            "fromTranslations requires a translations object",
+        ));
+    }
+
+    if call.arguments.len() > 2 {
+        return Err(fail(
+            source,
+            file,
+            call.span,
+            "fromTranslations accepts at most two arguments",
+        ));
+    }
+
+    if call.arguments.len() == 1 {
+        return Ok(vec![None]);
+    }
+
+    if call.arguments[1].is_spread() {
+        return Err(fail(
+            source,
+            file,
+            call.arguments[1].span(),
+            "fromTranslations options must be a static object",
+        ));
+    }
+
+    collect_notes(call.arguments[1].as_expression(), source, file)
+}
+
+fn parse_translations_hook_call<'a>(
+    expr: &Expression<'a>,
+    source: &str,
+    file: &str,
+) -> std::result::Result<Option<HookNoteBranches>, AnalysisError> {
+    let Expression::CallExpression(call) = unwrap_expression(expr) else {
+        return Ok(None);
+    };
+
+    let Expression::Identifier(callee) = unwrap_expression(&call.callee) else {
+        return Ok(None);
+    };
+
+    match callee.name.as_str() {
+        "useTranslations" => parse_use_translations_call(call, source, file).map(Some),
+        "fromTranslations" => parse_from_translations_call(call, source, file).map(Some),
+        _ => Ok(None),
+    }
 }
 
 fn join_errors(errors: Vec<AnalysisError>) -> AnalysisError {
@@ -447,7 +494,7 @@ impl<'a> Compiler<'a> {
 impl<'a> Visit<'a> for Compiler<'a> {
     fn visit_variable_declarator(&mut self, decl: &VariableDeclarator<'a>) {
         if let Some(init) = &decl.init {
-            match parse_use_translations_call(init, self.source, self.file) {
+            match parse_translations_hook_call(init, self.source, self.file) {
                 Ok(Some(notes)) => {
                     if let BindingPattern::BindingIdentifier(ident) = &decl.id {
                         self.hook_symbols.insert(ident.symbol_id(), notes);
@@ -583,7 +630,7 @@ fn analyze_file(path: &Path, strict: bool) -> FileAnalysis {
 
 #[napi]
 pub fn compile_sync(input: Vec<String>, strict: Option<bool>) -> Result<CompileOutput> {
-    let strict = strict.unwrap_or(false);
+    let strict = strict.unwrap_or(true);
     let files = collect_files(&input).map_err(|error| Error::from_reason(error.message))?;
 
     let analyses: Vec<FileAnalysis> = files
@@ -643,12 +690,23 @@ mod tests {
     #[test]
     fn basic_fixture() {
         assert_eq!(
-            compile_fixture("basic.tsx", false),
+            compile_fixture("basic.tsx", true),
             vec![
                 "Close(dialog button)".to_string(),
                 "Hello".to_string(),
                 "Hello {user}".to_string(),
                 "Static template".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn from_translations_fixture() {
+        assert_eq!(
+            compile_fixture("from-translations.tsx", true),
+            vec![
+                "Dashboard(admin panel)".to_string(),
+                "Server Hello".to_string(),
             ]
         );
     }

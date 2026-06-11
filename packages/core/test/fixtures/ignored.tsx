@@ -18,10 +18,10 @@ export function Ignored() {
 }
 
 export function WithoutHook() {
-  // invalid call, not from useTranslations() — ignored
+  // invalid call, not from a translation hook — ignored by default (strict)
   t("test", "test2");
 
-  // valid call, not from useTranslations() — extracted
+  // valid call, not from a translation hook — ignored by default (strict)
   t("Without Hook");
 }
 
