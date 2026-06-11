@@ -1,6 +1,6 @@
 {
   "name": "fuma-translate",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "description": "The build-time package to implement multilingual in your JavaScript app",
   "license": "MIT",
   "author": "Fuma Nama",

@@ -1,5 +1,13 @@
 # @fuma-translate/react
 
+## 1.0.0
+
+### Major Changes
+
+- 94f788d: Support JSX syntax in translations
+- 94f788d: Rewrite compiler in Rust
+- 94f788d: Support `fromTranslations` for non-hook usage
+
 ## 0.0.3
 
 ### Patch Changes
