@@ -1,5 +1,11 @@
 # @fuma-translate/react
 
+## 1.0.1
+
+### Patch Changes
+
+- 03da3a5: fix CI
+
 ## 1.0.0
 
 ### Major Changes
