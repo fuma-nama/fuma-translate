@@ -10,6 +10,7 @@ export default defineConfig({
   content: docs.toFumadocsSource(),
   site: {
     name: "Fuma Translate",
+    baseUrl: "https://translate.fuma-nama.dev",
     git: {
       branch: "dev",
       repo: "fuma-translate",
