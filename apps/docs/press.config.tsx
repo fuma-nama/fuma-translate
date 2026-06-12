@@ -5,6 +5,7 @@ import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
 import { docs } from "./.source/server";
 import { sitemapPlugin } from "fumapress/plugins/sitemap";
+import { LanguagesIcon } from "lucide-react";
 
 export default defineConfig({
   content: docs.toFumadocsSource(),
@@ -32,5 +33,17 @@ export default defineConfig({
     },
   },
 })
+  .layouts({
+    defaultProps: () => ({
+      nav: {
+        title: (
+          <>
+            <LanguagesIcon className="size-4" />
+            Fuma Translate
+          </>
+        ),
+      },
+    }),
+  })
   .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), sitemapPlugin())
   .adapters(fumadocsMdx());
