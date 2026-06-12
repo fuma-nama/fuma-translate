@@ -20,14 +20,12 @@ Arguments:
 Options:
   -o, --out <dir>        Output directory (default: .translations)
   -w, --watch            Recompile when matching files change
-      --no-strict        Extract all static t() calls, not only hook-bound ones
   -h, --help             Show this help message
 `;
 
 export interface CompileAndWriteOptions {
   input: string[];
   out: string;
-  strict: boolean;
 }
 
 export interface WatchOptions extends CompileAndWriteOptions {
@@ -63,7 +61,7 @@ function debounce(fn: () => void, ms: number): () => void {
 export async function compileAndWrite(
   options: CompileAndWriteOptions,
 ): Promise<{ keyCount: number }> {
-  const output = await compile({ input: options.input, strict: options.strict });
+  const output = await compile({ input: options.input });
   const outDir = resolve(options.out);
 
   await mkdir(outDir, { recursive: true });
@@ -142,7 +140,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     options: {
       out: { type: "string", short: "o", default: ".translations" },
       watch: { type: "boolean", short: "w", default: false },
-      strict: { type: "boolean", default: true },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: true,
@@ -161,7 +158,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   const options: CompileAndWriteOptions = {
     input: positionals,
     out: values.out,
-    strict: values.strict,
   };
 
   if (values.watch) {

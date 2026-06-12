@@ -69,10 +69,35 @@ describe("compile", () => {
     expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked"]);
   });
 
-  it("extracts non-hook t() calls when strict is false", async () => {
-    const result = await compile({ input: [fixture("ignored.tsx")], strict: false });
+  it("extracts calls and JSX annotated with // @fuma-translate", async () => {
+    const result = await compile({ input: [fixture("annotated.tsx")] });
 
-    expect(sortedKeys(result.translationKeys)).toEqual(["From hook", "Tracked", "Without Hook"]);
+    expect(sortedKeys(result.translationKeys)).toEqual([
+      "Annotated call",
+      "Annotated jsx(sidebar)",
+      "Block annotated",
+    ]);
+  });
+
+  it("extracts keys from renamed translation hooks", async () => {
+    const result = await compile({ input: [fixture("renamed-hook.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual([
+      "Hello from myT",
+      "Read <link>docs</link>",
+    ]);
+  });
+
+  it("ignores local T components not imported from @fuma-translate/react", async () => {
+    const result = await compile({ input: [fixture("fake-t.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual([]);
+  });
+
+  it("extracts keys from aliased T imports", async () => {
+    const result = await compile({ input: [fixture("aliased-t.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual(["Aliased hello(sidebar)"]);
   });
 
   it("extracts keys from fromTranslations()", async () => {
@@ -86,6 +111,16 @@ describe("compile", () => {
 
     expect(sortedKeys(result.translationKeys)).toEqual([
       "Click <a>here</a> to continue",
+      "Or <signup/> today(landing page)",
+    ]);
+  });
+
+  it("extracts keys from <T />", async () => {
+    const result = await compile({ input: [fixture("t-component.tsx")] });
+
+    expect(sortedKeys(result.translationKeys)).toEqual([
+      "Click <a>here</a> to continue",
+      "Hello {user}",
       "Or <signup/> today(landing page)",
     ]);
   });

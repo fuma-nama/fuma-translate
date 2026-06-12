@@ -18,10 +18,10 @@ export function Ignored() {
 }
 
 export function WithoutHook() {
-  // invalid call, not from a translation hook — ignored by default (strict)
+  // invalid call, not from a translation hook — ignored
   t("test", "test2");
 
-  // valid call, not from a translation hook — ignored by default (strict)
+  // not from a translation hook and no @fuma-translate directive — ignored
   t("Without Hook");
 }
 
