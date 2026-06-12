@@ -28,7 +28,7 @@ build
 dist
 fuma-translate.wasm32-wasi.wasm
 # Rust / NAPI
-packages/core/target/
+/target/
 packages/core/npm/
 packages/core/native/
 packages/core/*.node

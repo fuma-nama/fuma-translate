@@ -127,7 +127,6 @@ export function App() {
         {
           input: [join(srcDir, "**/*.tsx")],
           out: outDir,
-          strict: true,
           onCompiled: (result) => {
             compiled.push(result.ok ? { ok: true, keyCount: result.keyCount } : { ok: false });
           },

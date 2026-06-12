@@ -1,5 +1,12 @@
 # fuma-translate
 
+## 1.0.2
+
+### Patch Changes
+
+- 0a93e54: Support more glob syntax in input
+- 70cbd73: Support `<T />` component
+
 ## 1.0.1
 
 ### Patch Changes

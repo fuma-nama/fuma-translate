@@ -49,7 +49,7 @@ describe("t.jsx", () => {
       render(
         t.jsx("Read <bold><link>docs</link></bold>", {
           tags: {
-            bold: (children) => h("b", null, children),
+            bold: h("b", null),
             link: (children) => h("a", { href: "/docs" }, children),
           },
         }),

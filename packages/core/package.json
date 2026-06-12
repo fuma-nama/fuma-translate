@@ -1,6 +1,6 @@
 {
   "name": "fuma-translate",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "The build-time package to implement multilingual in your JavaScript app",
   "license": "MIT",
   "author": "Fuma Nama",
@@ -39,6 +39,7 @@
   "devDependencies": {
     "@emnapi/core": "^1.11.0",
     "@emnapi/runtime": "^1.11.0",
+    "@fuma-translate/react": "workspace:*",
     "@napi-rs/cli": "^3.7.1",
     "@repo/typescript-config": "workspace:*",
     "@tybys/wasm-util": "^0.10.0",

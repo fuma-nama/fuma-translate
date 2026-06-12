@@ -9,6 +9,8 @@
     "format": "oxfmt",
     "types:check": "turbo run types:check",
     "test": "vitest",
+    "test:rust": "cargo test -p fuma-translate-native",
+    "bench:rust": "cargo test --release -p fuma-translate-native bench -- --ignored --nocapture",
     "version": "changeset version",
     "release": "pnpm build --filter=./packages/* && changeset publish"
   },

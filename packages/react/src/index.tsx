@@ -1,5 +1,13 @@
 "use client";
-import { cloneElement, createContext, isValidElement, use, useMemo, type ReactNode } from "react";
+import {
+  cloneElement,
+  createContext,
+  isValidElement,
+  ReactElement,
+  use,
+  useMemo,
+  type ReactNode,
+} from "react";
 
 const Context = createContext<Partial<Record<string, string>>>({});
 
@@ -64,7 +72,7 @@ export interface TranslationsHook {
        */
       note?: string;
       variables?: Record<GetVariables<Text>, ReactNode>;
-      tags?: Record<GetTags<Text>, (children: ReactNode) => ReactNode>;
+      tags?: Record<GetTags<Text>, TagRenderer>;
     },
   ): ReactNode;
 }
@@ -151,7 +159,7 @@ const REGEX_TAG = /\\?<([^>]+)>/g;
 function onJsx(
   text: string,
   variables: Record<string, ReactNode> | undefined,
-  tags: Record<string, (children: ReactNode) => ReactNode>,
+  tags: Record<string, TagRenderer>,
 ) {
   const stack: { children: ReactNode[]; tag?: string }[] = [{ children: [] }];
   let idx = 0;
@@ -160,7 +168,9 @@ function onJsx(
 
     stack[stack.length - 1]!.children.push(
       enforceElementKey(
-        current.tag && tags[current.tag] ? tags[current.tag]!(current.children) : current.children,
+        current.tag && tags[current.tag]
+          ? renderTag(tags[current.tag]!, current.children)
+          : current.children,
         idx,
       ),
     );
@@ -191,7 +201,7 @@ function onJsx(
       const name = content.slice(0, -1);
 
       if (tags[name]) {
-        current.children.push(enforceElementKey(tags[name](undefined), idx));
+        current.children.push(enforceElementKey(renderTag(tags[name]), idx));
       }
     } else {
       stack.push({ children: [], tag: content });
@@ -205,6 +215,39 @@ function onJsx(
 
   while (stack.length > 1) closeTag();
   return stack[0]!.children;
+}
+
+interface TProps<Text extends string> {
+  text: Text;
+  /**
+   * add more context to `text`.
+   * @example "The aria-label of close dialog button"
+   */
+  note?: string;
+  variables?: Record<GetVariables<Text>, ReactNode>;
+  tags?: Record<GetTags<Text>, TagRenderer>;
+}
+
+export function T<const Text extends string>({
+  text,
+  note,
+  variables,
+  tags,
+}: TProps<Text>): ReactNode {
+  const translations = use(Context)!;
+  return useMemo(
+    () => fromTranslations(translations).jsx(text, { note, variables, tags }),
+    [translations, text, note, variables, tags],
+  );
+}
+
+/** render tags, also allows React elements like `<a href="/xxx" />` for RSC usages */
+type TagRenderer = ReactElement | ((children: ReactNode) => ReactNode);
+
+function renderTag(renderer: TagRenderer, child?: ReactNode) {
+  if (isValidElement(renderer))
+    return child === undefined ? renderer : cloneElement(renderer, undefined, child);
+  return renderer(child);
 }
 
 function enforceElementKey(value: ReactNode, key: number | string): ReactNode {

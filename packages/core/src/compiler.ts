@@ -1,8 +1,6 @@
 export interface CompileOptions {
   /** glob patterns */
   input: string[];
-  /** when false, extract all static t() calls; defaults to true (only useTranslations/fromTranslations) */
-  strict?: boolean;
 }
 
 export interface CompileOutput {
@@ -25,7 +23,7 @@ export async function compile(options: CompileOptions): Promise<CompileOutput> {
   const { compileSync } = await import("../native/native.js");
 
   try {
-    return compileSync(options.input, options.strict);
+    return compileSync(options.input);
   } catch (error) {
     if (error instanceof Error) {
       throw new StaticAnalysisError(error.message);

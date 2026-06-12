@@ -8,7 +8,8 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
-glob = "0.3"
+fast-glob = "1.0"
+walkdir = "2.5"
 napi = { version = "3", default-features = false, features = ["napi4"] }
 napi-derive = "3"
 oxc_allocator = "0.134.0"
@@ -23,10 +24,3 @@ rustc-hash = "2.1"
 
 [build-dependencies]
 napi-build = "2"
-
-[profile.release]
-lto = true
-strip = "symbols"
-codegen-units = 1
-opt-level = "z"
-panic = "abort"
