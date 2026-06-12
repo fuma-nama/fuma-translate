@@ -37,7 +37,12 @@ pub(crate) fn join_errors(errors: Vec<AnalysisError>) -> AnalysisError {
     }
 }
 
-pub(crate) fn fail(source: &str, file: &str, span: Span, message: impl Into<String>) -> AnalysisError {
+pub(crate) fn fail(
+    source: &str,
+    file: &str,
+    span: Span,
+    message: impl Into<String>,
+) -> AnalysisError {
     AnalysisError {
         message: format!(
             "{}:{}: {}",

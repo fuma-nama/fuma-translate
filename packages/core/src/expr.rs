@@ -1,6 +1,6 @@
 use oxc_ast::ast::{
-    CallExpression, Expression, JSXAttribute, JSXAttributeItem, JSXAttributeName,
-    JSXAttributeValue, ModuleExportName, ObjectPropertyKind, PropertyKey,
+    CallExpression, Expression, JSXAttribute, JSXAttributeItem, JSXAttributeValue, PropertyKind,
+    TemplateElementValue,
 };
 use oxc_semantic::Semantic;
 use oxc_span::GetSpan;
@@ -16,6 +16,7 @@ pub(crate) enum FumaImport {
     UseTranslations,
     FromTranslations,
     T,
+    Namespace,
 }
 
 type ExprResult<T> = Result<T, AnalysisError>;
@@ -29,24 +30,11 @@ pub(crate) fn fuma_import_from_export_name(name: &str) -> Option<FumaImport> {
     }
 }
 
-pub(crate) fn module_export_name<'a>(imported: &'a ModuleExportName<'a>) -> Option<&'a str> {
-    match imported {
-        ModuleExportName::IdentifierName(ident) => Some(ident.name.as_str()),
-        ModuleExportName::IdentifierReference(ident) => Some(ident.name.as_str()),
-        ModuleExportName::StringLiteral(literal) => Some(literal.value.as_str()),
-    }
-}
-
-fn unwrap_expression<'a>(mut expr: &'a Expression<'a>) -> &'a Expression<'a> {
-    loop {
-        match expr {
-            Expression::ParenthesizedExpression(wrapped) => expr = &wrapped.expression,
-            Expression::TSAsExpression(wrapped) => expr = &wrapped.expression,
-            Expression::TSSatisfiesExpression(wrapped) => expr = &wrapped.expression,
-            Expression::TSTypeAssertion(wrapped) => expr = &wrapped.expression,
-            _ => return expr,
-        }
-    }
+fn quasi_text(value: &TemplateElementValue<'_>) -> String {
+    value
+        .cooked
+        .map(|cooked| cooked.to_string())
+        .unwrap_or_else(|| value.raw.to_string())
 }
 
 pub(crate) fn collect_static_strings<'a>(
@@ -54,7 +42,7 @@ pub(crate) fn collect_static_strings<'a>(
     source: &str,
     file: &str,
 ) -> ExprResult<Vec<String>> {
-    let expr = unwrap_expression(expr);
+    let expr = expr.get_inner_expression();
 
     match expr {
         Expression::StringLiteral(literal) => Ok(vec![literal.value.to_string()]),
@@ -68,25 +56,14 @@ pub(crate) fn collect_static_strings<'a>(
                 ));
             }
 
-            let value = if template.quasis.len() == 1 {
-                let quasi = &template.quasis[0];
-                quasi
-                    .value
-                    .cooked
-                    .as_ref()
-                    .map_or_else(|| quasi.value.raw.to_string(), ToString::to_string)
+            let value = if template.is_no_substitution_template() {
+                quasi_text(&template.quasis[0].value)
             } else {
                 template
                     .quasis
                     .iter()
-                    .map(|quasi| {
-                        quasi
-                            .value
-                            .cooked
-                            .as_ref()
-                            .map_or_else(|| quasi.value.raw.as_str(), AsRef::as_ref)
-                    })
-                    .collect::<String>()
+                    .map(|quasi| quasi_text(&quasi.value))
+                    .collect()
             };
 
             Ok(vec![value])
@@ -117,26 +94,6 @@ pub(crate) fn collect_static_strings<'a>(
     }
 }
 
-fn get_note_property<'a>(
-    properties: &'a [ObjectPropertyKind<'a>],
-) -> Option<&'a oxc_ast::ast::ObjectProperty<'a>> {
-    properties.iter().find_map(|prop| {
-        let ObjectPropertyKind::ObjectProperty(property) = prop else {
-            return None;
-        };
-
-        if property.kind != oxc_ast::ast::PropertyKind::Init {
-            return None;
-        }
-
-        match &property.key {
-            PropertyKey::StaticIdentifier(ident) if ident.name == "note" => Some(&**property),
-            PropertyKey::StringLiteral(literal) if literal.value == "note" => Some(&**property),
-            _ => None,
-        }
-    })
-}
-
 pub(crate) fn collect_notes<'a>(
     expr: Option<&Expression<'a>>,
     source: &str,
@@ -146,7 +103,7 @@ pub(crate) fn collect_notes<'a>(
         return Ok(vec![None]);
     };
 
-    let expr = unwrap_expression(expr);
+    let expr = expr.get_inner_expression();
 
     if let Expression::ConditionalExpression(conditional) = expr {
         let mut notes = Vec::new();
@@ -176,7 +133,7 @@ pub(crate) fn collect_notes<'a>(
     };
 
     for prop in &object.properties {
-        if matches!(prop, ObjectPropertyKind::SpreadProperty(_)) {
+        if prop.is_spread() {
             return Err(fail(
                 source,
                 file,
@@ -186,11 +143,17 @@ pub(crate) fn collect_notes<'a>(
         }
     }
 
-    let Some(note_prop) = get_note_property(&object.properties) else {
+    let Some(note_prop) = object.properties.iter().find_map(|prop| {
+        let property = prop.as_property()?;
+        if !property.key.is_specific_static_name("note") {
+            return None;
+        }
+        Some(property)
+    }) else {
         return Ok(vec![None]);
     };
 
-    if note_prop.shorthand {
+    if note_prop.kind != PropertyKind::Init || note_prop.method || note_prop.shorthand {
         return Err(fail(
             source,
             file,
@@ -279,40 +242,61 @@ pub(crate) fn parse_translations_hook_call<'a>(
     source: &str,
     file: &str,
 ) -> ExprResult<Option<HookNoteBranches>> {
-    let Expression::CallExpression(call) = unwrap_expression(expr) else {
+    let Expression::CallExpression(call) = expr.get_inner_expression() else {
         return Ok(None);
     };
 
-    let Expression::Identifier(callee) = unwrap_expression(&call.callee) else {
+    let Some(import) = call_callee_import(call, semantic, fuma_imports) else {
         return Ok(None);
     };
 
-    let reference = semantic.scoping().get_reference(callee.reference_id());
-    let Some(symbol_id) = reference.symbol_id() else {
-        return Ok(None);
-    };
-
-    match fuma_imports.get(&symbol_id) {
-        Some(FumaImport::UseTranslations) => parse_use_translations_call(call, source, file).map(Some),
-        Some(FumaImport::FromTranslations) => parse_from_translations_call(call, source, file).map(Some),
+    match import {
+        FumaImport::UseTranslations => parse_use_translations_call(call, source, file).map(Some),
+        FumaImport::FromTranslations => parse_from_translations_call(call, source, file).map(Some),
         _ => Ok(None),
     }
 }
 
-fn get_jsx_attribute<'a>(
+fn identifier_import<'a>(
+    ident: &oxc_ast::ast::IdentifierReference<'a>,
+    semantic: &Semantic<'a>,
+    fuma_imports: &FxHashMap<SymbolId, FumaImport>,
+) -> Option<FumaImport> {
+    let reference = semantic.scoping().get_reference(ident.reference_id());
+    let symbol_id = reference.symbol_id()?;
+
+    fuma_imports.get(&symbol_id).copied()
+}
+
+fn call_callee_import<'a>(
+    call: &CallExpression<'a>,
+    semantic: &Semantic<'a>,
+    fuma_imports: &FxHashMap<SymbolId, FumaImport>,
+) -> Option<FumaImport> {
+    let callee = call.callee.get_inner_expression();
+
+    if let Expression::Identifier(ident) = callee {
+        return identifier_import(ident, semantic, fuma_imports);
+    }
+
+    let member = callee.as_member_expression()?;
+    let import = fuma_import_from_export_name(member.static_property_name()?)?;
+    let Expression::Identifier(object) = member.object().get_inner_expression() else {
+        return None;
+    };
+
+    (identifier_import(object, semantic, fuma_imports) == Some(FumaImport::Namespace))
+        .then_some(import)
+}
+
+pub(crate) fn find_jsx_attribute<'a>(
     attributes: &'a [JSXAttributeItem<'a>],
     name: &str,
 ) -> Option<&'a JSXAttribute<'a>> {
-    attributes.iter().find_map(|item| {
-        let JSXAttributeItem::Attribute(attr) = item else {
-            return None;
-        };
-
-        match &attr.name {
-            JSXAttributeName::Identifier(ident) if ident.name == name => Some(&**attr),
-            _ => None,
-        }
-    })
+    attributes
+        .iter()
+        .filter_map(JSXAttributeItem::as_attribute)
+        .find(|attr| attr.is_identifier(name))
 }
 
 pub(crate) fn collect_jsx_attribute_strings<'a>(
@@ -360,16 +344,4 @@ pub(crate) fn collect_jsx_attribute_notes<'a>(
         }
         _ => Err(fail(source, file, value.span(), MESSAGE)),
     }
-}
-
-pub(crate) fn get_jsx_text_attribute<'a>(
-    attributes: &'a [JSXAttributeItem<'a>],
-) -> Option<&'a JSXAttribute<'a>> {
-    get_jsx_attribute(attributes, "text")
-}
-
-pub(crate) fn get_jsx_note_attribute<'a>(
-    attributes: &'a [JSXAttributeItem<'a>],
-) -> Option<&'a JSXAttribute<'a>> {
-    get_jsx_attribute(attributes, "note")
 }

@@ -1,21 +1,22 @@
 use oxc_ast::ast::{
-    BindingPattern, CallExpression, Comment, Expression, IdentifierReference, ImportDeclaration,
-    ImportDeclarationSpecifier, ImportOrExportKind, JSXAttributeItem, JSXElement, JSXElementName,
-    JSXOpeningElement, VariableDeclarator,
+    CallExpression, Comment, Expression, IdentifierReference, ImportDeclaration,
+    ImportDeclarationSpecifier, ImportOrExportKind, JSXElementName, JSXMemberExpression,
+    JSXMemberExpressionObject, JSXOpeningElement, VariableDeclarator,
 };
-use oxc_span::GetSpan;
-use oxc_ast_visit::{Visit, walk};
+use oxc_ast_visit::{walk, Visit};
 use oxc_semantic::Semantic;
+use oxc_span::GetSpan;
 use oxc_syntax::symbol::SymbolId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::directive::{has_adjacent_jsx_directive, has_fuma_translate_directive, FUMA_TRANSLATE_REACT};
+use crate::directive::{
+    has_adjacent_jsx_directive, has_fuma_translate_directive, FUMA_TRANSLATE_REACT,
+};
 use crate::error::{fail, AnalysisError};
 use crate::expr::{
     collect_jsx_attribute_notes, collect_jsx_attribute_strings, collect_notes,
-    collect_static_strings, fuma_import_from_export_name, get_jsx_note_attribute,
-    get_jsx_text_attribute, module_export_name, parse_translations_hook_call,
-    FumaImport, HookNoteBranches,
+    collect_static_strings, find_jsx_attribute, fuma_import_from_export_name,
+    parse_translations_hook_call, FumaImport, HookNoteBranches,
 };
 
 pub(crate) struct Compiler<'a> {
@@ -68,12 +69,26 @@ impl<'a> Compiler<'a> {
             .filter(|symbol_id| self.hook_symbols.contains_key(symbol_id))
     }
 
-    fn is_fuma_t_component(&self, name: &JSXElementName<'a>) -> bool {
-        let JSXElementName::IdentifierReference(ident) = name else {
+    fn is_fuma_namespace_t_component(&self, member: &JSXMemberExpression<'a>) -> bool {
+        if member.property.name != "T" {
+            return false;
+        }
+
+        let JSXMemberExpressionObject::IdentifierReference(ident) = &member.object else {
             return false;
         };
 
-        self.fuma_import_for_ident(ident) == Some(FumaImport::T)
+        self.fuma_import_for_ident(ident) == Some(FumaImport::Namespace)
+    }
+
+    fn is_fuma_t_component(&self, opening: &JSXOpeningElement<'a>) -> bool {
+        match &opening.name {
+            JSXElementName::IdentifierReference(ident) => {
+                self.fuma_import_for_ident(ident) == Some(FumaImport::T)
+            }
+            JSXElementName::MemberExpression(member) => self.is_fuma_namespace_t_component(member),
+            _ => false,
+        }
     }
 
     fn should_analyze_call(&self, call: &CallExpression<'a>) -> Option<Option<SymbolId>> {
@@ -88,8 +103,8 @@ impl<'a> Compiler<'a> {
         None
     }
 
-    fn should_analyze_jsx(&self, element: &JSXElement<'a>) -> bool {
-        if self.is_fuma_t_component(&element.opening_element.name) {
+    fn should_analyze_jsx(&self, element: &oxc_ast::ast::JSXElement<'a>) -> bool {
+        if self.is_fuma_t_component(&element.opening_element) {
             return true;
         }
 
@@ -97,25 +112,23 @@ impl<'a> Compiler<'a> {
             return true;
         }
 
-        has_adjacent_jsx_directive(self.source, element.span.start)
+        has_adjacent_jsx_directive(self.comments, self.source, element.span.start)
     }
 
     fn hook_symbol_for_callee(&self, call: &CallExpression<'a>) -> Option<SymbolId> {
-        let callee = unwrap_callee(&call.callee);
+        let callee = call.callee.get_inner_expression();
 
         if let Expression::Identifier(ident) = callee {
             return self.hook_symbol_for_ident(ident);
         }
 
-        let Expression::StaticMemberExpression(member) = callee else {
-            return None;
-        };
+        let member = callee.as_member_expression()?;
 
-        if member.property.name != "jsx" {
+        if member.static_property_name() != Some("jsx") {
             return None;
         }
 
-        let Expression::Identifier(ident) = unwrap_callee(&member.object) else {
+        let Expression::Identifier(ident) = member.object().get_inner_expression() else {
             return None;
         };
 
@@ -206,7 +219,7 @@ impl<'a> Compiler<'a> {
 
     fn analyze_jsx(&mut self, opening: &JSXOpeningElement<'a>) {
         for item in &opening.attributes {
-            if matches!(item, JSXAttributeItem::SpreadAttribute(_)) {
+            if item.as_spread().is_some() {
                 self.errors.push(fail(
                     self.source,
                     self.file,
@@ -217,7 +230,7 @@ impl<'a> Compiler<'a> {
             }
         }
 
-        let Some(text_attr) = get_jsx_text_attribute(&opening.attributes) else {
+        let Some(text_attr) = find_jsx_attribute(&opening.attributes, "text") else {
             self.errors.push(fail(
                 self.source,
                 self.file,
@@ -240,7 +253,7 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        let call_notes = if let Some(note_attr) = get_jsx_note_attribute(&opening.attributes) {
+        let call_notes = if let Some(note_attr) = find_jsx_attribute(&opening.attributes, "note") {
             match collect_jsx_attribute_notes(note_attr, self.source, self.file) {
                 Ok(notes) => notes,
                 Err(error) => {
@@ -263,23 +276,27 @@ impl<'a> Visit<'a> for Compiler<'a> {
         if decl.source.value.as_str() == FUMA_TRANSLATE_REACT {
             if let Some(specifiers) = &decl.specifiers {
                 for specifier in specifiers {
-                    let ImportDeclarationSpecifier::ImportSpecifier(import) = specifier else {
-                        continue;
-                    };
+                    match specifier {
+                        ImportDeclarationSpecifier::ImportSpecifier(import)
+                            if decl.import_kind != ImportOrExportKind::Type
+                                && import.import_kind != ImportOrExportKind::Type =>
+                        {
+                            let Some(kind) =
+                                fuma_import_from_export_name(import.imported.name().as_str())
+                            else {
+                                continue;
+                            };
 
-                    if import.import_kind == ImportOrExportKind::Type {
-                        continue;
+                            self.fuma_imports.insert(import.local.symbol_id(), kind);
+                        }
+                        ImportDeclarationSpecifier::ImportNamespaceSpecifier(import)
+                            if decl.import_kind != ImportOrExportKind::Type =>
+                        {
+                            self.fuma_imports
+                                .insert(import.local.symbol_id(), FumaImport::Namespace);
+                        }
+                        _ => {}
                     }
-
-                    let Some(exported) = module_export_name(&import.imported) else {
-                        continue;
-                    };
-
-                    let Some(kind) = fuma_import_from_export_name(exported) else {
-                        continue;
-                    };
-
-                    self.fuma_imports.insert(import.local.symbol_id(), kind);
                 }
             }
         }
@@ -297,7 +314,7 @@ impl<'a> Visit<'a> for Compiler<'a> {
                 self.file,
             ) {
                 Ok(Some(notes)) => {
-                    if let BindingPattern::BindingIdentifier(ident) = &decl.id {
+                    if let Some(ident) = decl.id.get_binding_identifier() {
                         self.hook_symbols.insert(ident.symbol_id(), notes);
                     }
                 }
@@ -317,24 +334,12 @@ impl<'a> Visit<'a> for Compiler<'a> {
         walk::walk_call_expression(self, call);
     }
 
-    fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
+    fn visit_jsx_element(&mut self, element: &oxc_ast::ast::JSXElement<'a>) {
         if self.should_analyze_jsx(element) {
             self.analyze_jsx(&element.opening_element);
         }
 
         walk::walk_jsx_element(self, element);
-    }
-}
-
-fn unwrap_callee<'a>(mut expr: &'a Expression<'a>) -> &'a Expression<'a> {
-    loop {
-        match expr {
-            Expression::ParenthesizedExpression(wrapped) => expr = &wrapped.expression,
-            Expression::TSAsExpression(wrapped) => expr = &wrapped.expression,
-            Expression::TSSatisfiesExpression(wrapped) => expr = &wrapped.expression,
-            Expression::TSTypeAssertion(wrapped) => expr = &wrapped.expression,
-            _ => return expr,
-        }
     }
 }
 
@@ -369,13 +374,14 @@ fn push_encoded_keys(
         .map(HookNoteBranches::as_slice)
         .unwrap_or(&[None][..]);
 
+    if hook_notes == [None] && call_notes == [None] {
+        keys.insert(text.to_string());
+        return;
+    }
+
     for hook_note in hook_notes {
         for call_note in call_notes {
-            keys.insert(encode_key(
-                text,
-                hook_note.as_deref(),
-                call_note.as_deref(),
-            ));
+            keys.insert(encode_key(text, hook_note.as_deref(), call_note.as_deref()));
         }
     }
 }

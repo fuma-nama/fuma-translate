@@ -60,9 +60,11 @@ pub(crate) fn analyze_source(file: &str, source_type: SourceType, source: &str) 
 
     if !semantic_result.errors.is_empty() {
         let mut analysis = FileAnalysis::empty();
-        analysis.errors.extend(semantic_result.errors.iter().map(|error| AnalysisError {
-            message: format!("{file}: {error}"),
-        }));
+        analysis
+            .errors
+            .extend(semantic_result.errors.iter().map(|error| AnalysisError {
+                message: format!("{file}: {error}"),
+            }));
         return analysis;
     }
 
@@ -94,11 +96,12 @@ fn glob_walk_root(pattern: &str) -> PathBuf {
     }
 }
 
-pub(crate) fn collect_files(
-    input: &[String],
-) -> std::result::Result<Vec<PathBuf>, AnalysisError> {
+pub(crate) fn collect_files(input: &[String]) -> std::result::Result<Vec<PathBuf>, AnalysisError> {
     let patterns: Vec<&[u8]> = input.iter().map(String::as_bytes).collect();
-    let roots: FxHashSet<PathBuf> = input.iter().map(|pattern| glob_walk_root(pattern)).collect();
+    let roots: FxHashSet<PathBuf> = input
+        .iter()
+        .map(|pattern| glob_walk_root(pattern))
+        .collect();
     let mut files = FxHashSet::default();
 
     for root in roots {
@@ -138,9 +141,7 @@ pub(crate) fn analyze_file(path: &Path) -> FileAnalysis {
     analyze_source(&file, source_type, &source)
 }
 
-pub(crate) fn compile_files(
-    input: &[String],
-) -> std::result::Result<CompileOutput, AnalysisError> {
+pub(crate) fn compile_files(input: &[String]) -> std::result::Result<CompileOutput, AnalysisError> {
     let files = collect_files(input)?;
 
     let analyses: Vec<FileAnalysis> = files
@@ -162,6 +163,7 @@ pub(crate) fn compile_files(
 
     let mut translation_keys = Vec::with_capacity(keys.len());
     translation_keys.extend(keys);
+    translation_keys.sort_unstable();
 
     Ok(CompileOutput { translation_keys })
 }

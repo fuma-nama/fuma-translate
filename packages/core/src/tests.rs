@@ -151,6 +151,87 @@ export function Annotated() {
 }
 
 #[test]
+fn namespace_imports() {
+    let source = r#"
+import * as ft from "@fuma-translate/react";
+
+export function NamespaceImport() {
+  const t = ft.useTranslations({ note: "namespace hook" });
+
+  return (
+    <>
+      {t("From namespace")}
+      <ft.T text="Namespace component" note="component note" />
+    </>
+  );
+}
+"#;
+    let analysis = analyze_source("namespace.tsx", SourceType::tsx(), source);
+    assert!(
+        analysis.errors.is_empty(),
+        "{}",
+        join_errors(analysis.errors).message
+    );
+    let mut keys: Vec<String> = analysis.keys.into_iter().collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec![
+            "From namespace(namespace hook)".to_string(),
+            "Namespace component(component note)".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn t_alias_member_expression_is_not_component() {
+    let source = r#"
+import { T as Translate } from "@fuma-translate/react";
+
+export function AliasedMember() {
+  return (
+    <>
+      <Translate text="Real component" />
+      <Translate.NotT text="Not a translation component" />
+    </>
+  );
+}
+"#;
+    let analysis = analyze_source("aliased-member.tsx", SourceType::tsx(), source);
+    assert!(
+        analysis.errors.is_empty(),
+        "{}",
+        join_errors(analysis.errors).message
+    );
+    let mut keys: Vec<String> = analysis.keys.into_iter().collect();
+    keys.sort_unstable();
+    assert_eq!(keys, vec!["Real component".to_string()]);
+}
+
+#[test]
+fn rejects_non_static_note_accessor() {
+    let source = r#"
+import { useTranslations } from "@fuma-translate/react";
+
+export function InvalidNote() {
+  const t = useTranslations();
+
+  return t("Save", {
+    get note() {
+      return "dynamic";
+    },
+  });
+}
+"#;
+    let analysis = analyze_source("invalid-note.tsx", SourceType::tsx(), source);
+
+    assert_eq!(analysis.errors.len(), 1);
+    assert!(analysis.errors[0]
+        .message
+        .contains("translation note must be a static string"));
+}
+
+#[test]
 fn collects_multiple_errors_in_one_file() {
     let source = r#"
 import { useTranslations } from "@fuma-translate/react";
@@ -170,14 +251,10 @@ export function Broken() {
     let analysis = analyze_source("broken.tsx", SourceType::tsx(), source);
 
     assert_eq!(analysis.errors.len(), 2);
-    assert!(analysis
-        .errors
-        .iter()
-        .any(|error| error.message.contains("translation key must be a static string")));
-    assert!(analysis
-        .errors
-        .iter()
-        .any(|error| error
-            .message
-            .contains("translation options cannot use spread properties")));
+    assert!(analysis.errors.iter().any(|error| error
+        .message
+        .contains("translation key must be a static string")));
+    assert!(analysis.errors.iter().any(|error| error
+        .message
+        .contains("translation options cannot use spread properties")));
 }
