@@ -1,5 +1,11 @@
 # @fuma-translate/react
 
+## 1.0.2
+
+### Patch Changes
+
+- 70cbd73: Support `<T />` component
+
 ## 1.0.1
 
 ### Patch Changes
