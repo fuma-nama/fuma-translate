@@ -4,6 +4,7 @@ import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
 import { docs } from "./.source/server";
+import { sitemapPlugin } from "fumapress/plugins/sitemap";
 
 export default defineConfig({
   content: docs.toFumadocsSource(),
@@ -30,5 +31,5 @@ export default defineConfig({
     },
   },
 })
-  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), sitemapPlugin())
   .adapters(fumadocsMdx());

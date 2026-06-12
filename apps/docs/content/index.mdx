@@ -15,36 +15,20 @@ npm install fuma-translate @fuma-translate/react
 
 ### Add a compile script
 
-Create a script that scans your source files and writes generated types to `.translations/index.ts`.
-
-```ts title="scripts/compile-translations.ts"
-import { mkdir, writeFile } from "node:fs/promises";
-import { compile, typegen } from "fuma-translate";
-
-const output = await compile({
-  input: ["src/**/*.tsx"],
-});
-
-await mkdir(".translations", { recursive: true });
-await writeFile(".translations/index.ts", typegen(output), "utf8");
-```
-
-Add it to your `package.json`:
+Use the CLI to scan your source files and write generated translation files.
 
 ```json title="package.json"
 {
   "type": "module",
   "scripts": {
-    "compile:translations": "node scripts/compile-translations.ts",
+    "compile:translations": "fuma-translate \"src/**/*.tsx\"",
     "dev": "pnpm compile:translations && ...",
     "build": "pnpm compile:translations && ..."
   }
 }
 ```
 
-Run it whenever you add or change `t("...")` calls, or hook into your build process.
-
-This generates a file like:
+By default, this writes `.translations/index.ts` and `.translations/manifest.json`.
 
 ```ts title=".translations/index.ts"
 export type Translations = {
@@ -55,6 +39,8 @@ export type Translations = {
 ```
 
 Keys are generated from the original text with meaningful context, your future translation work can rely purely on the keys as a reference.
+
+For other needs, see [CLI Usage](/cli) or [Programmatic Usage](/programmatic).
 
 ### Define translations
 
@@ -118,6 +104,16 @@ function Dialog() {
 
 `useTranslations()` returns the translate hook, see the [`t()`](/hook) section for more details.
 
+For JSX-only usage, import the `T` component and pass the original text as a static `text` prop:
+
+```tsx
+import { T } from "@fuma-translate/react";
+
+function HomePage() {
+  return <T text="Hello {user}" variables={{ user: <strong>Ada</strong> }} />;
+}
+```
+
 You can stack multiple providers to override or extend translations:
 
 ```tsx
@@ -130,9 +126,9 @@ You can stack multiple providers to override or extend translations:
 
 ## Recommended Workflow
 
-1. Write UI with static `t("...")` calls.
+1. Write UI with static `t("...")` calls, `t.jsx("...")` calls, `<T text="..." />` components, or annotated calls/components.
 2. Run `pnpm compile:translations` to regenerate `.translations/index.ts`.
 3. Fill in `translations.ts` to satisfy the generated type.
 4. Pass translations to `TranslationProvider`.
 
-Translation keys must be statically analyzable. Dynamic keys such as `t(key)` or ``t(`Hello ${name}`)`` will fail at compile time.
+Translation keys must be statically analyzable. Dynamic keys such as `t(key)`, ``t(`Hello ${name}`)``, or `<T text={label} />` will fail at compile time.

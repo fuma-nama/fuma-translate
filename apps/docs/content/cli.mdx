@@ -1,0 +1,43 @@
+---
+title: CLI Usage
+description: Compile translation keys from the command line.
+---
+
+Use the `fuma-translate` CLI to scan source files and write generated translation files.
+
+```bash
+fuma-translate "src/**/*.tsx"
+```
+
+By default, the CLI writes two files to `.translations`:
+
+- `index.ts` exports the strict `Translations` type.
+- `manifest.json` contains the sorted list of translation keys for tooling.
+
+## Glob patterns
+
+Pass one or more glob patterns:
+
+```bash
+fuma-translate "src/**/*.{ts,tsx}" "components/**/*.tsx"
+```
+
+Wrap globs in quotes so your package manager passes them to Fuma Translate instead of expanding them in the shell.
+
+## Output directory
+
+Use `--out` to write generated files somewhere else:
+
+```bash
+fuma-translate --out generated/translations "src/**/*.tsx"
+```
+
+## Watch mode
+
+Use `--watch` during development:
+
+```bash
+fuma-translate --watch "src/**/*.tsx"
+```
+
+The CLI recompiles when matching files change and ignores the output directory.

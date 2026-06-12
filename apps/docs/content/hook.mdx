@@ -52,7 +52,7 @@ function Dialog() {
 
 Per-call `note` values are appended after the hook-level note.
 
-## Translation keys
+## Translation Keys
 
 The compiler extracts keys from static `t("...")` calls.
 
@@ -65,6 +65,111 @@ export type Translations = {
 ```
 
 Translation keys must be statically analyzable. Dynamic keys such as `t(key)` or ``t(`Hello ${name}`)`` will fail at compile time.
+
+## Comment Annotations
+
+Use a `// @fuma-translate` comment when you need the compiler to extract a translation from a compatible wrapper function or component.
+
+The annotation must be immediately above the call or JSX element:
+
+```tsx
+function Label({ text, note }: { text: string; note?: string }) {
+  return <span data-note={note}>{text}</span>;
+}
+
+function legacyTranslate(text: string, options?: { note?: string }) {
+  return text;
+}
+
+export function Sidebar() {
+  // @fuma-translate
+  return legacyTranslate("Open menu", { note: "sidebar button" });
+}
+
+export function Header() {
+  return (
+    // @fuma-translate
+    <Label text="Open menu" note="header button" />
+  );
+}
+```
+
+Inside a JSX fragment, use a JSX comment:
+
+```tsx
+export function Footer() {
+  return (
+    <>
+      {/* @fuma-translate */}
+      <Label text="Contact us" />
+    </>
+  );
+}
+```
+
+## As Component
+
+Use `<T />` when you want JSX syntax instead of calling `t()` or `t.jsx()` manually.
+
+```tsx
+import { T } from "@fuma-translate/react";
+
+function WelcomeMessage() {
+  return <T text="Hello {user}" variables={{ user: <strong>Ada</strong> }} />;
+}
+```
+
+`<T />` accepts the same rich text options as `t.jsx()`:
+
+```tsx
+function LoginHint() {
+  return (
+    <T
+      text="Click <login>here</login> or <signup/>."
+      tags={{
+        login: (children) => <a href="/login">{children}</a>,
+        signup: () => <a href="/signup">create an account</a>,
+      }}
+    />
+  );
+}
+```
+
+Add `note` to disambiguate reused text:
+
+```tsx
+<T text="Close" note="dialog button" />
+// key: "Close(dialog button)"
+```
+
+The compiler only extracts `<T />` components imported from `@fuma-translate/react`. Aliased imports are supported:
+
+```tsx
+import { T as Translate } from "@fuma-translate/react";
+
+<Translate text="Read docs" />;
+```
+
+`text` and `note` must be static strings, and spread attributes are not supported.
+
+### React Server Components
+
+`<T />` can be rendered from React Server Components. When passing rich text tags across the RSC boundary, prefer React elements instead of render functions:
+
+```tsx
+import { T } from "@fuma-translate/react";
+
+export default function Page() {
+  return (
+    <T
+      text="Read <docs>the docs</docs>"
+      tags={{
+        docs: <a href="/docs" />,
+      }}
+    />
+  );
+}
+```
 
 ## JSX
 

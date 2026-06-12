@@ -1,0 +1,66 @@
+---
+title: Programmatic Usage
+description: Compile translation keys from a custom script.
+---
+
+Use the programmatic API when you need control over how generated files are written or integrated with your tooling.
+
+```ts title="scripts/compile-translations.ts"
+import { mkdir, writeFile } from "node:fs/promises";
+import { compile, typegen } from "fuma-translate";
+
+const output = await compile({
+  input: ["src/**/*.tsx"],
+});
+
+await mkdir(".translations", { recursive: true });
+await writeFile(".translations/index.ts", typegen(output), "utf8");
+```
+
+Add it to your package scripts:
+
+```json title="package.json"
+{
+  "scripts": {
+    "compile:translations": "node scripts/compile-translations.ts"
+  }
+}
+```
+
+## `compile()`
+
+Scans source files and returns the extracted translation keys.
+
+```ts
+import { compile } from "fuma-translate";
+
+const output = await compile({
+  input: ["src/**/*.{ts,tsx}", "components/**/*.tsx"],
+});
+
+console.log(output.translationKeys);
+```
+
+## `typegen()`
+
+Converts the compiler output into a TypeScript declaration file.
+
+```ts
+import { compile, typegen } from "fuma-translate";
+
+const output = await compile({
+  input: ["src/**/*.tsx"],
+});
+
+const source = typegen(output);
+```
+
+The generated source looks like:
+
+```ts
+export type Translations = {
+  "Close(dialog button)": string;
+  Hello: string;
+  "Hello {user}": string;
+};
+```
