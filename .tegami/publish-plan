@@ -1,0 +1,1 @@
+{"id":"tegami-mqlkz4mi","createdAt":"2026-06-19T23:49:31.818Z","version":"0.0.0","changelogs":{"2026-06-20-mqlkyyhh.md":{"filename":"2026-06-20-mqlkyyhh.md","packages":{"npm:fuma-translate":"patch"},"sections":[{"title":"Hello world","content":"I love it"}]}},"packages":{"npm:fuma-translate":{"type":"patch","changelogIds":["2026-06-20-mqlkyyhh.md"],"publish":true}}}

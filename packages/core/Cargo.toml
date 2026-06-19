@@ -5,12 +5,11 @@ edition = "2021"
 license = "MIT"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = [ "cdylib" ]
 
 [dependencies]
 fast-glob = "1.0"
 walkdir = "2.5"
-napi = { version = "3", default-features = false, features = ["napi4"] }
 napi-derive = "3"
 oxc_allocator = "0.134.0"
 oxc_ast = "0.134.0"
@@ -21,6 +20,11 @@ oxc_span = "0.134.0"
 oxc_syntax = "0.134.0"
 rayon = "1.10"
 rustc-hash = "2.1"
+
+[dependencies.napi]
+version = "3"
+default-features = false
+features = [ "napi4" ]
 
 [build-dependencies]
 napi-build = "2"
