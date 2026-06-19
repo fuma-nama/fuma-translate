@@ -11,13 +11,13 @@
     "test": "vitest",
     "test:rust": "cargo test -p fuma-translate-native",
     "bench:rust": "cargo test --release -p fuma-translate-native bench -- --ignored --nocapture",
-    "version": "changeset version",
-    "release": "pnpm build --filter=./packages/* && changeset publish"
+    "tegami": "node scripts/tegami.mts"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.0",
+    "@types/node": "^25.9.3",
     "oxfmt": "^0.54.0",
     "oxlint": "^1.68.0",
+    "tegami": "^0.1.0-beta.2",
     "turbo": "^2.9.18",
     "typescript": "6.0.3",
     "vitest": "^4.1.8"

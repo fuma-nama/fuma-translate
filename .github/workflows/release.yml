@@ -90,6 +90,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -120,10 +122,6 @@ jobs:
         run: pnpm run build --filter=!./packages/core
 
       - name: Create Release Pull Request or Publish to npm
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          publish: pnpm exec changeset publish
-          version: pnpm run version
+        run: pnpm tegami ci
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

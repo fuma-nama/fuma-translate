@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "types": ["node"],
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "target": "esnext"
+  },
+  "exclude": ["node_modules", "dist"]
+}
