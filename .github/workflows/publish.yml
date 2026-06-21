@@ -1,0 +1,73 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - dev
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish (${{ matrix.host }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: macos-latest
+            targets: aarch64-apple-darwin x86_64-apple-darwin
+          - host: ubuntu-24.04-arm
+            targets: aarch64-unknown-linux-gnu
+          - host: ubuntu-latest
+            targets: x86_64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-musl wasm32-wasip1-threads
+            publish_main: true
+          - host: windows-latest
+            targets: x86_64-pc-windows-msvc
+          - host: windows-11-arm
+            targets: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.host }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+
+      - uses: mlugg/setup-zig@v2
+        if: ${{ contains(matrix.targets, 'musl') }}
+        with:
+          version: 0.14.1
+
+      - name: Install cargo-zigbuild
+        if: ${{ contains(matrix.targets, 'musl') }}
+        uses: taiki-e/install-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild
+
+      - name: Install Dependencies
+        run: pnpm i --frozen-lockfile
+
+      - name: Publish
+        run: pnpm tegami publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NAPI_TARGETS: ${{ matrix.targets }}
+          TEGAMI_PUBLISH_MAIN: ${{ matrix.publish_main == true && 'true' || 'false' }}

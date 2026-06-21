@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 
 [lib]
-crate-type = [ "cdylib" ]
+crate-type = ["cdylib"]
 
 [dependencies]
 fast-glob = "1.0"
@@ -24,7 +24,7 @@ rustc-hash = "2.1"
 [dependencies.napi]
 version = "3"
 default-features = false
-features = [ "napi4" ]
+features = ["napi4"]
 
 [build-dependencies]
 napi-build = "2"

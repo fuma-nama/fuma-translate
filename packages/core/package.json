@@ -30,7 +30,7 @@
     "build:js": "tsdown",
     "build": "pnpm build:native && pnpm build:js",
     "dev": "tsdown --watch",
-    "prepublishOnly": "napi prepublish -t npm",
+    "prepublishOnly": "napi prepublish -t npm --skip-optional-publish",
     "artifacts": "napi create-npm-dirs && napi artifacts --npm-dir npm --output-dir native --build-output-dir native"
   },
   "dependencies": {
