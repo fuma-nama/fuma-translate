@@ -18,8 +18,11 @@ importers:
         specifier: ^1.68.0
         version: 1.69.0
       tegami:
-        specifier: ^0.1.0-beta.2
-        version: 0.1.0-beta.2
+        specifier: ^0.1.0-beta.4
+        version: 0.1.0-beta.4
+      tinyexec:
+        specifier: ^1.2.4
+        version: 1.2.4
       turbo:
         specifier: ^2.9.18
         version: 2.9.18
@@ -3356,8 +3359,8 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
-  tegami@0.1.0-beta.2:
-    resolution: {integrity: sha512-mGFB4tBxrIw4dA/2iQ85n9sCB1dMTGPxRGScKnYlG9uMtV0QcOleqQ1qaBMepfgz+86W93BeV1+YJrASvAYHnQ==}
+  tegami@0.1.0-beta.4:
+    resolution: {integrity: sha512-NtDK4JMsO0u3+ff+i74ue684y/IWuCGi1T0GBOEUx0ymTwMqYblYhXxdYdapuCwnAOumpDcpQ4Q9o0S8R+WNyw==}
 
   terser-webpack-plugin@5.6.1:
     resolution: {integrity: sha512-201R5j+sJpK8nFWwKVyNfZot8FaJbLZDq5evriVzbV1wDtSXDjRUDRfJzHpAaxFDMEhsZL1QkeqM61wgsS3KaQ==}
@@ -6854,7 +6857,7 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  tegami@0.1.0-beta.2:
+  tegami@0.1.0-beta.4:
     dependencies:
       '@clack/prompts': 1.5.1
       commander: 15.0.0

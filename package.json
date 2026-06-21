@@ -17,7 +17,8 @@
     "@types/node": "^25.9.3",
     "oxfmt": "^0.54.0",
     "oxlint": "^1.68.0",
-    "tegami": "^0.1.0-beta.2",
+    "tegami": "^0.1.0-beta.4",
+    "tinyexec": "^1.2.4",
     "turbo": "^2.9.18",
     "typescript": "6.0.3",
     "vitest": "^4.1.8"
